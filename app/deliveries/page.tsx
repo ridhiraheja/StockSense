@@ -6,14 +6,15 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { TableSkeleton, Alert } from "@/components/ui";
 import { Delivery } from "@/lib/types";
 import {
     Plus,
     Search,
     ShoppingCart,
     Filter,
-    ChevronRight,
-    CheckCircle,
+    Calendar,
+    Eye,
 } from "lucide-react";
 
 interface DeliveryWithDetails extends Delivery {
@@ -73,38 +74,38 @@ export default function DeliveriesPage() {
     return (
         <AppLayout
             title="Delivery Orders"
-            description="Fulfill customer orders, pick and pack items, and dispatch stock."
+            description="Manage outbound customer shipments, check stock availability, and validate dispatches."
             actions={
                 <Link
                     href="/deliveries/new"
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
+                    className="ss-button ss-button-primary"
                 >
-                    <Plus size={18} />
-                    Create Delivery
+                    <Plus size={16} />
+                    New Delivery
                 </Link>
             }
         >
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
+            {/* Filter Bar */}
+            <div className="ss-card p-4 mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1">
                     <div className="relative w-full sm:w-72">
                         <Search
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                         />
                         <input
                             type="text"
-                            placeholder="Search by delivery #, customer, warehouse..."
+                            placeholder="Search by order #, customer, warehouse..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                            className="ss-input !pl-9"
                         />
                     </div>
 
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="ss-select w-full sm:w-40"
                     >
                         <option value="all">All Statuses</option>
                         <option value="draft">Draft</option>
@@ -115,90 +116,97 @@ export default function DeliveriesPage() {
                     </select>
                 </div>
 
-                <div className="text-sm font-medium text-slate-500 w-full md:w-auto text-right">
-                    Showing <span className="text-slate-900 font-bold">{filteredDeliveries.length}</span> deliveries
+                <div className="text-xs text-slate-500 font-medium whitespace-nowrap">
+                    Showing <span className="font-bold text-slate-900">{filteredDeliveries.length}</span> of {deliveries.length} deliveries
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Deliveries Table */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading delivery orders...</p>
-                </div>
+                <TableSkeleton rows={5} columns={6} />
             ) : filteredDeliveries.length === 0 ? (
                 <EmptyState
                     icon={ShoppingCart}
-                    title={searchQuery || statusFilter !== "all" ? "No deliveries match your search" : "No delivery orders found"}
+                    title="No delivery orders found"
                     description={
                         searchQuery || statusFilter !== "all"
-                            ? "Try resetting your search query or status filter."
-                            : "Create an outgoing customer delivery order to dispatch items from inventory."
+                            ? "No delivery orders match your search criteria."
+                            : "Create your first outbound delivery order to fulfill customer requests."
                     }
-                    actionLabel={searchQuery || statusFilter !== "all" ? undefined : "Create First Delivery"}
+                    actionLabel="Create Delivery"
                     actionHref="/deliveries/new"
                 />
             ) : (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Delivery #</th>
-                                    <th className="px-6 py-4">Customer</th>
-                                    <th className="px-6 py-4">Source Warehouse</th>
-                                    <th className="px-6 py-4 text-center">Items / Quantity</th>
-                                    <th className="px-6 py-4">Date</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredDeliveries.map((d) => (
-                                    <tr key={d.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4 font-mono font-bold text-slate-900">
+                <div className="ss-table-wrapper">
+                    <table className="ss-table">
+                        <thead>
+                            <tr>
+                                <th>Delivery Order #</th>
+                                <th>Customer Name</th>
+                                <th>Warehouse Source</th>
+                                <th>Items / Total Qty</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th className="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredDeliveries.map((d) => (
+                                <tr key={d.id}>
+                                    <td>
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 font-bold text-xs">
+                                                <ShoppingCart size={14} />
+                                            </div>
                                             <Link
                                                 href={`/deliveries/${d.id}`}
-                                                className="text-purple-600 hover:underline flex items-center gap-1.5"
+                                                className="font-mono font-bold text-slate-900 hover:text-blue-600 transition"
                                             >
-                                                <ShoppingCart size={16} />
                                                 {d.delivery_number}
                                             </Link>
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-slate-800">
-                                            {d.customer_name || "Direct Customer"}
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-700">
-                                            {d.warehouse?.name || "Main Warehouse"}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="font-semibold text-slate-900">
-                                                {d.items_count} item{d.items_count === 1 ? "" : "s"}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="font-medium text-slate-800">
+                                            {d.customer_name || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-600 text-xs">
+                                            {d.warehouse?.name || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-600 font-medium">
+                                                {d.items_count} line items
                                             </span>
-                                            <span className="text-xs text-slate-400 block">
-                                                ({d.total_quantity} total units)
+                                            <span className="font-mono font-bold text-slate-900 text-xs">
+                                                ({d.total_quantity} units)
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-500 text-xs">
                                             {new Date(d.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={d.status} type="document" />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <Link
-                                                href={`/deliveries/${d.id}`}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                                            >
-                                                View
-                                                <ChevronRight size={14} />
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <StatusBadge status={d.status} type="document" />
+                                    </td>
+                                    <td className="text-right">
+                                        <Link
+                                            href={`/deliveries/${d.id}`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition"
+                                        >
+                                            <Eye size={13} />
+                                            View
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </AppLayout>

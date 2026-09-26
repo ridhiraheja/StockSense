@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { Skeleton } from "@/components/ui";
 import {
     Package,
     AlertTriangle,
@@ -16,13 +17,18 @@ import {
     SlidersHorizontal,
     Plus,
     Boxes,
-    ChevronRight,
     ArrowUpRight,
-    TrendingUp,
-    ShieldAlert,
-    Clock,
-    Warehouse,
+    ArrowDownRight,
     Filter,
+    Layers,
+    Warehouse,
+    ShieldAlert,
+    CheckCircle2,
+    Calendar,
+    ChevronRight,
+    Activity,
+    TrendingUp,
+    Sparkles,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -43,7 +49,6 @@ export default function DashboardPage() {
 
     // Document Filter in Dashboard
     const [docTypeFilter, setDocTypeFilter] = useState<string>("all");
-    const [statusFilter, setStatusFilter] = useState<string>("all");
     const [whFilter, setWhFilter] = useState<string>("all");
     const [catFilter, setCatFilter] = useState<string>("all");
 
@@ -163,145 +168,222 @@ export default function DashboardPage() {
 
     return (
         <AppLayout
-            title="Executive Inventory Dashboard"
-            description="Real-time key performance indicators, inventory health, and operational dispatch flows."
+            title="Inventory Overview"
+            description="Real-time stock analytics, inventory health alerts, and operational dispatch telemetry."
             actions={
-                <Link
-                    href="/products/new"
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
-                >
-                    <Plus size={18} />
-                    Add Product
-                </Link>
+                <div className="flex items-center gap-2.5">
+                    <Link
+                        href="/receipts/new"
+                        className="ss-button ss-button-secondary hidden sm:inline-flex text-xs font-semibold"
+                    >
+                        <Truck size={14} className="text-emerald-600" />
+                        Receive Stock
+                    </Link>
+                    <Link
+                        href="/products/new"
+                        className="ss-button ss-button-primary text-xs font-bold"
+                    >
+                        <Plus size={16} />
+                        Add Product
+                    </Link>
+                </div>
             }
         >
-            {/* KPI STATS ROW */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-                <StatCard
-                    title="Total Products"
-                    value={totalProducts}
-                    description={`${totalStock} total units in stock`}
-                    icon={Package}
-                    color="blue"
-                    href="/products"
-                />
-                <StatCard
-                    title="Low / Out of Stock"
-                    value={lowStockCount}
-                    description={lowStockCount > 0 ? "Requires reordering" : "Optimal levels"}
-                    icon={AlertTriangle}
-                    color={lowStockCount > 0 ? "red" : "green"}
-                    href="/products"
-                />
-                <StatCard
-                    title="Pending Receipts"
-                    value={pendingReceipts}
-                    description="Incoming vendor orders"
-                    icon={Truck}
-                    color="green"
-                    href="/receipts"
-                />
-                <StatCard
-                    title="Pending Deliveries"
-                    value={pendingDeliveries}
-                    description="Outbound customer orders"
-                    icon={ShoppingCart}
-                    color="purple"
-                    href="/deliveries"
-                />
-                <StatCard
-                    title="Transfers Scheduled"
-                    value={pendingTransfers}
-                    description="Internal relocations"
-                    icon={ArrowRightLeft}
-                    color="indigo"
-                    href="/transfers"
-                />
+            {/* LUXURY COMMAND HERO BANNER */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#090D16] via-[#111827] to-[#0f172a] p-6 md:p-7 text-white shadow-xl shadow-slate-950/10 border border-slate-800/80 mb-6">
+                {/* Ambient Decorative Radial Glows */}
+                <div className="absolute top-0 right-0 -mt-12 -mr-12 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-1/3 -mb-12 w-64 h-64 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-2 max-w-xl">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold tracking-wide">
+                            <span className="flex h-2 w-2 relative">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            StockSense Engine Active
+                            <span className="text-blue-400/60">•</span>
+                            <span className="text-slate-300 font-normal">Realtime Sync</span>
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+                            Warehouse Command & Operations
+                        </h2>
+                        <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed">
+                            Monitor enterprise inventory levels across {warehouses.length} facility zones, process receipts, and dispatch outbound shipments.
+                        </p>
+                    </div>
+
+                    {/* Quick Telemetry Chips */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0">
+                        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-xl text-center">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Facilities</span>
+                            <span className="text-xl font-extrabold font-mono text-white mt-0.5 block">{warehouses.length}</span>
+                        </div>
+                        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-xl text-center">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Categories</span>
+                            <span className="text-xl font-extrabold font-mono text-white mt-0.5 block">{categories.length}</span>
+                        </div>
+                        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-xl text-center col-span-2 sm:col-span-1">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Inventory Health</span>
+                            <span className={`text-xl font-extrabold font-mono mt-0.5 block ${lowStockCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                                {lowStockCount > 0 ? `${lowStockCount} Alerts` : "100% OK"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* QUICK ACTIONS ROW */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs mb-8">
+            {/* KPI STATS ROW */}
+            {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="ss-card p-5 space-y-3">
+                            <Skeleton className="h-3 w-20" />
+                            <Skeleton className="h-8 w-16" />
+                            <Skeleton className="h-2 w-28" />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                    <StatCard
+                        title="Total in Stock"
+                        value={totalStock.toLocaleString()}
+                        description={`${totalProducts} unique SKU products`}
+                        icon={Package}
+                        color="blue"
+                        href="/products"
+                    />
+                    <StatCard
+                        title="Low / Out of Stock"
+                        value={lowStockCount}
+                        description={lowStockCount > 0 ? "Requires purchase order" : "Optimal safety stock"}
+                        icon={AlertTriangle}
+                        color={lowStockCount > 0 ? "red" : "green"}
+                        href="/products"
+                    />
+                    <StatCard
+                        title="Pending Receipts"
+                        value={pendingReceipts}
+                        description="Incoming supplier orders"
+                        icon={Truck}
+                        color="green"
+                        href="/receipts"
+                    />
+                    <StatCard
+                        title="Pending Deliveries"
+                        value={pendingDeliveries}
+                        description="Customer dispatch orders"
+                        icon={ShoppingCart}
+                        color="purple"
+                        href="/deliveries"
+                    />
+                    <StatCard
+                        title="Transfers Scheduled"
+                        value={pendingTransfers}
+                        description="Internal bin relocations"
+                        icon={ArrowRightLeft}
+                        color="indigo"
+                        href="/transfers"
+                    />
+                </div>
+            )}
+
+            {/* QUICK ACTIONS ROW WITH COLORFUL TILES */}
+            <div className="ss-card p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-base font-bold text-slate-900">
-                            Quick Inventory Operations
+                        <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                            <Activity size={16} className="text-blue-600" />
+                            Operations Launchpad
                         </h3>
-                        <p className="text-xs text-slate-500">
-                            Perform common warehouse transactions with one click.
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Instant dispatch and document creation workflows.
                         </p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <Link
-                        href="/products/new"
-                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-blue-50/60 hover:border-blue-300 transition text-center group"
-                    >
-                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                            <Plus size={20} />
-                        </div>
-                        <span className="text-xs font-bold text-slate-800">Add Product</span>
-                        <span className="text-[10px] text-slate-400 mt-0.5">Register new SKU</span>
-                    </Link>
-
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
                     <Link
                         href="/receipts/new"
-                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-emerald-50/60 hover:border-emerald-300 transition text-center group"
+                        className="flex items-center gap-3.5 p-4 rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white hover:from-emerald-500/15 hover:to-emerald-100/40 hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-500/10 transition-all duration-200 group"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                            <Truck size={20} />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/25 group-hover:scale-110 transition-transform duration-200">
+                            <Truck size={19} />
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Create Receipt</span>
-                        <span className="text-[10px] text-slate-400 mt-0.5">Receive shipment</span>
+                        <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-900 block truncate group-hover:text-emerald-700">New Receipt</span>
+                            <span className="text-[11px] text-slate-500 block truncate font-medium">Inbound supplier</span>
+                        </div>
                     </Link>
 
                     <Link
                         href="/deliveries/new"
-                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-purple-50/60 hover:border-purple-300 transition text-center group"
+                        className="flex items-center gap-3.5 p-4 rounded-xl border border-purple-200/70 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-white hover:from-purple-500/15 hover:to-purple-100/40 hover:border-purple-400 hover:shadow-md hover:shadow-purple-500/10 transition-all duration-200 group"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                            <ShoppingCart size={20} />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-purple-500/25 group-hover:scale-110 transition-transform duration-200">
+                            <ShoppingCart size={19} />
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Create Delivery</span>
-                        <span className="text-[10px] text-slate-400 mt-0.5">Dispatch order</span>
+                        <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-900 block truncate group-hover:text-purple-700">New Delivery</span>
+                            <span className="text-[11px] text-slate-500 block truncate font-medium">Customer dispatch</span>
+                        </div>
                     </Link>
 
                     <Link
                         href="/transfers/new"
-                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-indigo-50/60 hover:border-indigo-300 transition text-center group"
+                        className="flex items-center gap-3.5 p-4 rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-white hover:from-indigo-500/15 hover:to-indigo-100/40 hover:border-indigo-400 hover:shadow-md hover:shadow-indigo-500/10 transition-all duration-200 group"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                            <ArrowRightLeft size={20} />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25 group-hover:scale-110 transition-transform duration-200">
+                            <ArrowRightLeft size={19} />
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Internal Transfer</span>
-                        <span className="text-[10px] text-slate-400 mt-0.5">Move zones</span>
+                        <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-900 block truncate group-hover:text-indigo-700">New Transfer</span>
+                            <span className="text-[11px] text-slate-500 block truncate font-medium">Relocate bins</span>
+                        </div>
                     </Link>
 
                     <Link
                         href="/adjustments/new"
-                        className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-amber-50/60 hover:border-amber-300 transition text-center group col-span-2 sm:col-span-1"
+                        className="flex items-center gap-3.5 p-4 rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white hover:from-amber-500/15 hover:to-amber-100/40 hover:border-amber-400 hover:shadow-md hover:shadow-amber-500/10 transition-all duration-200 group"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                            <SlidersHorizontal size={20} />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/25 group-hover:scale-110 transition-transform duration-200">
+                            <SlidersHorizontal size={19} />
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Stock Adjustment</span>
-                        <span className="text-[10px] text-slate-400 mt-0.5">Shelf audit count</span>
+                        <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-900 block truncate group-hover:text-amber-700">Stock Adjustment</span>
+                            <span className="text-[11px] text-slate-500 block truncate font-medium">Physical audit</span>
+                        </div>
+                    </Link>
+
+                    <Link
+                        href="/products/new"
+                        className="flex items-center gap-3.5 p-4 rounded-xl border border-blue-200/70 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-white hover:from-blue-500/15 hover:to-blue-100/40 hover:border-blue-400 hover:shadow-md hover:shadow-blue-500/10 transition-all duration-200 group col-span-2 sm:col-span-1"
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/25 group-hover:scale-110 transition-transform duration-200">
+                            <Plus size={19} />
+                        </div>
+                        <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-900 block truncate group-hover:text-blue-700">Register Product</span>
+                            <span className="text-[11px] text-slate-500 block truncate font-medium">Create new SKU</span>
+                        </div>
                     </Link>
                 </div>
             </div>
 
             {/* DASHBOARD LIVE METRICS & FILTER BAR */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-8 flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-                    <Filter size={15} className="text-blue-600" />
-                    Dashboard View Filters:
+            <div className="ss-card p-3.5 mb-6 flex flex-wrap gap-2.5 items-center justify-between bg-slate-50/70 border-slate-200/80">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-700 pl-1">
+                    <Filter size={14} className="text-blue-600" />
+                    Ledger Filters:
                 </div>
 
                 <div className="flex flex-wrap gap-2 flex-1 justify-end">
                     <select
                         value={docTypeFilter}
                         onChange={(e) => setDocTypeFilter(e.target.value)}
-                        className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:ring-2 focus:ring-blue-500"
+                        className="ss-select !h-8.5 !py-0 !text-xs !w-auto bg-white font-medium shadow-2xs border-slate-300"
                     >
                         <option value="all">All Movements</option>
                         <option value="receipt">Receipts (+)</option>
@@ -313,7 +395,7 @@ export default function DashboardPage() {
                     <select
                         value={whFilter}
                         onChange={(e) => setWhFilter(e.target.value)}
-                        className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:ring-2 focus:ring-blue-500"
+                        className="ss-select !h-8.5 !py-0 !text-xs !w-auto bg-white font-medium shadow-2xs border-slate-300"
                     >
                         <option value="all">All Warehouses</option>
                         {warehouses.map((w) => (
@@ -326,7 +408,7 @@ export default function DashboardPage() {
                     <select
                         value={catFilter}
                         onChange={(e) => setCatFilter(e.target.value)}
-                        className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-700 focus:ring-2 focus:ring-blue-500"
+                        className="ss-select !h-8.5 !py-0 !text-xs !w-auto bg-white font-medium shadow-2xs border-slate-300"
                     >
                         <option value="all">All Categories</option>
                         {categories.map((c) => (
@@ -339,28 +421,34 @@ export default function DashboardPage() {
             </div>
 
             {/* TWO COLUMN CONTENT: RECENT MOVEMENTS & LOW STOCK ALERTS */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
                 {/* Recent Stock Movements */}
-                <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
+                <div className="lg:col-span-7 ss-card overflow-hidden flex flex-col justify-between">
                     <div>
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/40">
                             <div>
-                                <h3 className="text-base font-bold text-slate-900">
+                                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
                                     Recent Stock Movements
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-0.5">
-                                    Live activity ledger recorded in PostgreSQL.
+                                    Live activity recorded in database ledger.
                                 </p>
                             </div>
                             <Link
                                 href="/moves"
-                                className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+                                className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
                             >
-                                View All Ledger →
+                                Full Ledger →
                             </Link>
                         </div>
 
-                        {filteredRecentMoves.length === 0 ? (
+                        {loading ? (
+                            <div className="p-4 space-y-3">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <Skeleton key={i} className="h-10 w-full" />
+                                ))}
+                            </div>
+                        ) : filteredRecentMoves.length === 0 ? (
                             <div className="p-8 text-center text-xs text-slate-400">
                                 No recent movements matching your filters.
                             </div>
@@ -375,14 +463,14 @@ export default function DashboardPage() {
                                     return (
                                         <div
                                             key={m.id}
-                                            className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition text-sm"
+                                            className="p-3.5 flex items-center justify-between hover:bg-slate-50/80 transition text-xs"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                                                    <Boxes size={16} />
+                                                    <Boxes size={15} />
                                                 </div>
                                                 <div>
-                                                    <p className="font-semibold text-slate-900 leading-tight">
+                                                    <p className="font-bold text-slate-900 leading-tight">
                                                         {m.product?.name || "Product"}
                                                     </p>
                                                     <span className="text-[11px] text-slate-400 font-mono">
@@ -391,10 +479,10 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-3">
                                                 <StatusBadge status={m.move_type} type="move" />
                                                 <span
-                                                    className={`font-mono font-bold text-sm min-w-16 text-right ${
+                                                    className={`font-mono font-bold text-xs min-w-14 text-right ${
                                                         isPositive ? "text-emerald-600" : "text-purple-600"
                                                     }`}
                                                 >
@@ -408,7 +496,7 @@ export default function DashboardPage() {
                         )}
                     </div>
 
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 text-right">
+                    <div className="p-3 bg-slate-50/70 border-t border-slate-100 text-right">
                         <Link
                             href="/moves"
                             className="text-xs font-semibold text-slate-600 hover:text-slate-900"
@@ -419,75 +507,101 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Low Stock Watchlist */}
-                <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between">
+                <div className="lg:col-span-5 ss-card overflow-hidden flex flex-col justify-between">
                     <div>
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
                             <div>
-                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                                    <ShieldAlert size={18} className="text-rose-600" />
+                                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <ShieldAlert size={16} className="text-rose-600" />
                                     Low Stock Alerts
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-0.5">
                                     Items near or below reorder threshold.
                                 </p>
                             </div>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                lowStockProducts.length > 0
+                                    ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}>
                                 {lowStockProducts.length} items
                             </span>
                         </div>
 
-                        {lowStockProducts.length === 0 ? (
-                            <div className="p-8 text-center text-xs text-emerald-600 font-medium">
-                                ✓ All stock levels are currently above minimum reorder points!
+                        {loading ? (
+                            <div className="p-4 space-y-3">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                    <Skeleton key={i} className="h-10 w-full" />
+                                ))}
+                            </div>
+                        ) : lowStockProducts.length === 0 ? (
+                            <div className="p-8 text-center text-xs text-emerald-600 font-semibold flex flex-col items-center gap-2">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                                    <CheckCircle2 size={20} />
+                                </div>
+                                <span>All stock levels are currently optimal!</span>
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-100">
-                                {lowStockProducts.map((p) => (
-                                    <div
-                                        key={p.id}
-                                        className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition text-sm"
-                                    >
-                                        <div>
-                                            <p className="font-semibold text-slate-900">{p.name}</p>
-                                            <p className="text-xs text-slate-400 font-mono">
-                                                SKU: {p.sku}
-                                            </p>
-                                        </div>
+                                {lowStockProducts.map((p) => {
+                                    const percent = Math.min(100, Math.round((p.current_stock / (p.min_threshold || 1)) * 100));
+                                    return (
+                                        <div
+                                            key={p.id}
+                                            className="p-3.5 hover:bg-slate-50/80 transition text-xs"
+                                        >
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <div>
+                                                    <p className="font-bold text-slate-900">{p.name}</p>
+                                                    <p className="text-[11px] text-slate-400 font-mono">
+                                                        SKU: {p.sku}
+                                                    </p>
+                                                </div>
 
-                                        <div className="text-right flex items-center gap-3">
-                                            <div>
-                                                <span
-                                                    className={`font-bold block text-sm ${
-                                                        p.current_stock <= 0
-                                                            ? "text-rose-600"
-                                                            : "text-amber-600"
-                                                    }`}
-                                                >
+                                                <div className="text-right flex items-center gap-2">
+                                                    <StatusBadge
+                                                        status={p.current_stock <= 0 ? "Out of Stock" : "Low Stock"}
+                                                        type="stock"
+                                                    />
+                                                    <Link
+                                                        href="/receipts/new"
+                                                        className="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-md font-bold text-[11px] transition shadow-2xs"
+                                                        title="Create Receipt"
+                                                    >
+                                                        + PO
+                                                    </Link>
+                                                </div>
+                                            </div>
+
+                                            {/* Progress Bar of Safety Stock */}
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full transition-all duration-300 ${
+                                                            p.current_stock <= 0
+                                                                ? "bg-rose-500 w-0"
+                                                                : percent < 50
+                                                                ? "bg-rose-500"
+                                                                : "bg-amber-500"
+                                                        }`}
+                                                        style={{ width: `${Math.max(4, percent)}%` }}
+                                                    />
+                                                </div>
+                                                <span className="font-mono text-[10px] text-slate-500 font-bold shrink-0">
                                                     {p.current_stock} / {p.min_threshold} min
                                                 </span>
-                                                <StatusBadge
-                                                    status={p.current_stock <= 0 ? "Out of Stock" : "Low Stock"}
-                                                    type="stock"
-                                                />
                                             </div>
-                                            <Link
-                                                href="/receipts/new"
-                                                className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition"
-                                                title="Create Receipt"
-                                            >
-                                                <Plus size={16} />
-                                            </Link>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
 
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 text-right">
+                    <div className="p-3 bg-slate-50/70 border-t border-slate-100 text-right">
                         <Link
                             href="/products"
-                            className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                         >
                             View All Catalog Stock →
                         </Link>
@@ -496,34 +610,40 @@ export default function DashboardPage() {
             </div>
 
             {/* LOWER ROW: RECENT RECEIPTS & DELIVERIES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Recent Receipts */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                    <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <Truck size={18} className="text-emerald-600" />
+                <div className="ss-card p-5">
+                    <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-3.5">
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <Truck size={16} className="text-emerald-600" />
                             Recent Inbound Receipts
                         </h3>
-                        <Link href="/receipts" className="text-xs font-semibold text-blue-600 hover:underline">
+                        <Link href="/receipts" className="text-xs font-bold text-blue-600 hover:underline">
                             View All
                         </Link>
                     </div>
 
-                    {recentReceipts.length === 0 ? (
+                    {loading ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} className="h-10 w-full" />
+                            ))}
+                        </div>
+                    ) : recentReceipts.length === 0 ? (
                         <p className="text-xs text-slate-400 py-4 text-center">No recent receipts recorded.</p>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {recentReceipts.map((r) => (
                                 <Link
                                     key={r.id}
                                     href={`/receipts/${r.id}`}
-                                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-emerald-50/50 transition border border-slate-200 text-xs"
+                                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-emerald-50/50 transition border border-slate-200/80 text-xs group"
                                 >
                                     <div>
-                                        <span className="font-mono font-bold text-slate-900 block">
+                                        <span className="font-mono font-bold text-slate-900 block group-hover:text-emerald-700">
                                             {r.receipt_number}
                                         </span>
-                                        <span className="text-slate-500">
+                                        <span className="text-slate-500 text-[11px]">
                                             {r.supplier_name || "Vendor"} • {r.warehouse?.name}
                                         </span>
                                     </div>
@@ -535,32 +655,38 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Recent Deliveries */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                    <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <ShoppingCart size={18} className="text-purple-600" />
+                <div className="ss-card p-5">
+                    <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-3.5">
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <ShoppingCart size={16} className="text-purple-600" />
                             Recent Outbound Deliveries
                         </h3>
-                        <Link href="/deliveries" className="text-xs font-semibold text-purple-600 hover:underline">
+                        <Link href="/deliveries" className="text-xs font-bold text-purple-600 hover:underline">
                             View All
                         </Link>
                     </div>
 
-                    {recentDeliveries.length === 0 ? (
+                    {loading ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <Skeleton key={i} className="h-10 w-full" />
+                            ))}
+                        </div>
+                    ) : recentDeliveries.length === 0 ? (
                         <p className="text-xs text-slate-400 py-4 text-center">No recent deliveries recorded.</p>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {recentDeliveries.map((d) => (
                                 <Link
                                     key={d.id}
                                     href={`/deliveries/${d.id}`}
-                                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-purple-50/50 transition border border-slate-200 text-xs"
+                                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 hover:bg-purple-50/50 transition border border-slate-200/80 text-xs group"
                                 >
                                     <div>
-                                        <span className="font-mono font-bold text-slate-900 block">
+                                        <span className="font-mono font-bold text-slate-900 block group-hover:text-purple-700">
                                             {d.delivery_number}
                                         </span>
-                                        <span className="text-slate-500">
+                                        <span className="text-slate-500 text-[11px]">
                                             {d.customer_name || "Customer"} • {d.warehouse?.name}
                                         </span>
                                     </div>

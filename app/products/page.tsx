@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { Modal } from "@/components/Modal";
+import { TableSkeleton, Alert } from "@/components/ui";
 import { Product, Category, Warehouse, Location, StockLevel } from "@/lib/types";
 import {
     Plus,
@@ -15,12 +16,11 @@ import {
     Filter,
     Edit,
     Trash2,
-    CheckCircle,
-    AlertCircle,
     Eye,
     PackageCheck,
-    Layers,
     Warehouse as WarehouseIcon,
+    Layers,
+    X,
 } from "lucide-react";
 
 interface ProductWithDetails extends Product {
@@ -141,11 +141,16 @@ export default function ProductsPage() {
         setEditModalOpen(true);
     };
 
+    const openDetailModal = (p: ProductWithDetails) => {
+        setViewingProduct(p);
+        setDetailModalOpen(true);
+    };
+
     const handleSaveEdit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingProduct) return;
         if (!editName.trim() || !editSku.trim()) {
-            setError("Product Name and SKU are required.");
+            setError("Name and SKU are required.");
             return;
         }
 
@@ -159,7 +164,7 @@ export default function ProductsPage() {
                     name: editName.trim(),
                     sku: editSku.trim().toUpperCase(),
                     category_id: editCategory || null,
-                    unit_of_measure: editUom.trim(),
+                    unit_of_measure: editUom.trim() || "Units",
                     description: editDescription.trim() || null,
                     is_active: editActive,
                     updated_at: new Date().toISOString(),
@@ -174,7 +179,7 @@ export default function ProductsPage() {
             setTimeout(() => setSuccessMessage(""), 4000);
         } catch (err: unknown) {
             console.error("Error updating product:", err);
-            const message = err instanceof Error ? err.message : "Unable to update product.";
+            const message = err instanceof Error ? err.message : "Failed to update product";
             setError(message);
         } finally {
             setSaving(false);
@@ -182,7 +187,7 @@ export default function ProductsPage() {
     };
 
     const handleDeleteProduct = async (p: ProductWithDetails) => {
-        if (!confirm(`Are you sure you want to delete product "${p.name}" (${p.sku})? This will delete associated stock records.`)) {
+        if (!confirm(`Are you sure you want to permanently delete product "${p.name}" (${p.sku})?`)) {
             return;
         }
 
@@ -194,12 +199,12 @@ export default function ProductsPage() {
 
             if (delError) throw delError;
 
-            setSuccessMessage(`Product "${p.name}" deleted.`);
+            setSuccessMessage(`Product "${p.name}" was deleted successfully.`);
             loadProductsData();
             setTimeout(() => setSuccessMessage(""), 4000);
         } catch (err: unknown) {
             console.error("Error deleting product:", err);
-            const message = err instanceof Error ? err.message : "Unable to delete product.";
+            const message = err instanceof Error ? err.message : "Unable to delete product (it may be referenced in moves or orders).";
             alert(message);
         }
     };
@@ -210,58 +215,62 @@ export default function ProductsPage() {
             p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (p.category?.name && p.category.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-        const matchesCategory = selectedCategory === "all" || p.category_id === selectedCategory;
-        const matchesStatus =
-            selectedStockStatus === "all" ||
-            p.stock_status?.toLowerCase() === selectedStockStatus.toLowerCase();
+        const matchesCategory =
+            selectedCategory === "all" || p.category_id === selectedCategory;
 
-        return matchesSearch && matchesCategory && matchesStatus;
+        const matchesStock =
+            selectedStockStatus === "all" || p.stock_status === selectedStockStatus;
+
+        return matchesSearch && matchesCategory && matchesStock;
     });
 
     return (
         <AppLayout
-            title="Products Inventory"
-            description="Manage your product catalog, SKUs, units of measure, and multi-location stock levels."
+            title="Product Catalog"
+            description="Manage inventory items, SKUs, category classifications, and real-time on-hand balances."
             actions={
                 <Link
                     href="/products/new"
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
+                    className="ss-button ss-button-primary"
                 >
-                    <Plus size={18} />
+                    <Plus size={16} />
                     Add Product
                 </Link>
             }
         >
-            {successMessage && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-3 text-sm">
-                    <CheckCircle className="text-emerald-600 shrink-0" size={18} />
-                    <span>{successMessage}</span>
-                </div>
+            {error && (
+                <Alert type="error" className="mb-6">
+                    {error}
+                </Alert>
             )}
 
-            {/* Filters Bar */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
-                    {/* Search */}
-                    <div className="relative w-full sm:w-72">
+            {successMessage && (
+                <Alert type="success" className="mb-6">
+                    {successMessage}
+                </Alert>
+            )}
+
+            {/* Filter & Search Bar */}
+            <div className="ss-card p-4 mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1">
+                    <div className="relative w-full sm:w-64">
                         <Search
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                         />
                         <input
                             type="text"
-                            placeholder="Search by product name, SKU..."
+                            placeholder="Search by SKU, product name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                            className="ss-input !pl-9"
                         />
                     </div>
 
-                    {/* Category Filter */}
                     <select
                         value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="ss-select w-full sm:w-44"
                     >
                         <option value="all">All Categories</option>
                         {categories.map((c) => (
@@ -271,192 +280,210 @@ export default function ProductsPage() {
                         ))}
                     </select>
 
-                    {/* Stock Status Filter */}
                     <select
                         value={selectedStockStatus}
                         onChange={(e) => setSelectedStockStatus(e.target.value)}
-                        className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="ss-select w-full sm:w-40"
                     >
-                        <option value="all">All Stock Statuses</option>
-                        <option value="in stock">In Stock</option>
-                        <option value="low stock">Low Stock</option>
-                        <option value="out of stock">Out of Stock</option>
+                        <option value="all">All Stock Status</option>
+                        <option value="In Stock">In Stock</option>
+                        <option value="Low Stock">Low Stock</option>
+                        <option value="Out of Stock">Out of Stock</option>
                     </select>
                 </div>
 
-                <div className="text-sm font-medium text-slate-500 w-full md:w-auto text-right">
-                    Showing <span className="text-slate-900 font-bold">{filteredProducts.length}</span> items
+                <div className="text-xs text-slate-500 font-medium whitespace-nowrap self-end sm:self-center">
+                    Showing <span className="font-bold text-slate-900">{filteredProducts.length}</span> of{" "}
+                    {products.length} products
                 </div>
             </div>
 
             {/* Products Table */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading product inventory...</p>
-                </div>
+                <TableSkeleton rows={6} columns={6} />
             ) : filteredProducts.length === 0 ? (
                 <EmptyState
                     icon={Boxes}
-                    title={searchQuery || selectedCategory !== "all" ? "No products match your filters" : "No products added yet"}
+                    title="No products found"
                     description={
-                        searchQuery || selectedCategory !== "all"
-                            ? "Try adjusting or clearing your search and filter criteria."
-                            : "Add your first product with initial stock and location to start tracking operations."
+                        searchQuery || selectedCategory !== "all" || selectedStockStatus !== "all"
+                            ? "No products match your current search and filter criteria."
+                            : "Add your first product to start managing inventory."
                     }
-                    actionLabel={searchQuery || selectedCategory !== "all" ? undefined : "Add First Product"}
+                    actionLabel="Add Product"
                     actionHref="/products/new"
                 />
             ) : (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Product & SKU</th>
-                                    <th className="px-6 py-4">Category</th>
-                                    <th className="px-6 py-4">Unit of Measure</th>
-                                    <th className="px-6 py-4 text-center">Current Stock</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredProducts.map((p) => (
-                                    <tr key={p.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4">
+                <div className="ss-table-wrapper">
+                    <table className="ss-table">
+                        <thead>
+                            <tr>
+                                <th>Product & SKU</th>
+                                <th>Category</th>
+                                <th>Unit</th>
+                                <th>Stock Level</th>
+                                <th>Status</th>
+                                <th className="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredProducts.map((p) => (
+                                <tr key={p.id}>
+                                    <td>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                                <Boxes size={16} />
+                                            </div>
                                             <div>
-                                                <span className="font-semibold text-slate-900 block">
+                                                <span className="font-semibold text-slate-900 block leading-tight">
                                                     {p.name}
                                                 </span>
-                                                <span className="font-mono text-xs text-slate-500">
-                                                    SKU: {p.sku}
+                                                <span className="text-[11px] font-mono text-slate-400">
+                                                    {p.sku}
                                                 </span>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {p.category ? (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
-                                                    {p.category.name}
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-400 text-xs">Uncategorized</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-slate-700">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-600">
+                                            {p.category?.name || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-500 text-xs">
                                             {p.unit_of_measure || "Units"}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="font-bold text-base text-slate-900">
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-bold text-slate-900 font-mono text-sm">
                                                 {p.calculated_stock}
                                             </span>
-                                            <span className="text-xs text-slate-400 ml-1">
-                                                {p.unit_of_measure || "Units"}
+                                            <span className="text-slate-400 text-xs">
+                                                {p.unit_of_measure}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={p.stock_status || "In Stock"} type="stock" />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <button
-                                                    onClick={() => {
-                                                        setViewingProduct(p);
-                                                        setDetailModalOpen(true);
-                                                    }}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                    title="View Location Breakdown"
-                                                >
-                                                    <Eye size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => openEditModal(p)}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                    title="Edit Product"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteProduct(p)}
-                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                                                    title="Delete Product"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <StatusBadge
+                                            status={p.stock_status || "In Stock"}
+                                            type="stock"
+                                        />
+                                    </td>
+                                    <td className="text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button
+                                                onClick={() => openDetailModal(p)}
+                                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                                title="View Stock Breakdown"
+                                            >
+                                                <Eye size={15} />
+                                            </button>
+                                            <button
+                                                onClick={() => openEditModal(p)}
+                                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                                title="Edit Product"
+                                            >
+                                                <Edit size={15} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteProduct(p)}
+                                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                                                title="Delete Product"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
 
-            {/* View Locations Breakdown Modal */}
+            {/* DETAIL MODAL: Multi-location Stock Breakdown */}
             <Modal
                 isOpen={detailModalOpen}
                 onClose={() => setDetailModalOpen(false)}
                 title={viewingProduct ? `${viewingProduct.name} (${viewingProduct.sku})` : "Product Details"}
-                description="Warehouse and location zone breakdown for this product."
+                description="Warehouse distribution and location-level inventory quantities."
             >
                 {viewingProduct && (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl">
+                        <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs">
                             <div>
-                                <p className="text-xs text-slate-400 font-semibold uppercase">Total Stock</p>
-                                <p className="text-xl font-bold text-slate-900">
-                                    {viewingProduct.calculated_stock} {viewingProduct.unit_of_measure}
-                                </p>
+                                <span className="text-slate-400 block font-medium">Category</span>
+                                <span className="font-semibold text-slate-800">
+                                    {viewingProduct.category?.name || "Unassigned"}
+                                </span>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-400 font-semibold uppercase">Category</p>
-                                <p className="text-sm font-semibold text-slate-800">
-                                    {viewingProduct.category?.name || "Uncategorized"}
-                                </p>
+                                <span className="text-slate-400 block font-medium">Unit of Measure</span>
+                                <span className="font-semibold text-slate-800">
+                                    {viewingProduct.unit_of_measure}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-slate-400 block font-medium">Total On Hand</span>
+                                <span className="font-bold text-slate-900 font-mono text-sm">
+                                    {viewingProduct.calculated_stock} {viewingProduct.unit_of_measure}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-slate-400 block font-medium">Catalog Status</span>
+                                <span className="font-semibold text-slate-800">
+                                    {viewingProduct.is_active ? "Active" : "Inactive"}
+                                </span>
                             </div>
                         </div>
 
+                        {viewingProduct.description && (
+                            <div className="text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
+                                <span className="font-bold text-slate-700 block mb-1">Description:</span>
+                                {viewingProduct.description}
+                            </div>
+                        )}
+
                         <div>
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                                Locations Stored
+                                Location Stock Breakdown
                             </h4>
-                            {viewingProduct.stock_levels && viewingProduct.stock_levels.length > 0 ? (
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {(!viewingProduct.stock_levels || viewingProduct.stock_levels.length === 0) ? (
+                                <p className="text-xs text-slate-400 p-4 text-center border border-dashed border-slate-200 rounded-lg">
+                                    No stock allocated to any warehouse location yet.
+                                </p>
+                            ) : (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
                                     {viewingProduct.stock_levels.map((sl) => (
                                         <div
                                             key={sl.id}
-                                            className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 text-sm"
+                                            className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-xs"
                                         >
-                                            <div>
-                                                <p className="font-semibold text-slate-900">
-                                                    {sl.location?.warehouse?.name || "Warehouse"}
-                                                </p>
-                                                <p className="text-xs text-slate-500">
-                                                    Zone: {sl.location?.name} ({sl.location?.code})
-                                                </p>
+                                            <div className="flex items-center gap-2">
+                                                <WarehouseIcon size={15} className="text-slate-400" />
+                                                <div>
+                                                    <span className="font-semibold text-slate-900 block">
+                                                        {sl.location?.warehouse?.name || "Warehouse"}
+                                                    </span>
+                                                    <span className="text-slate-500 text-[11px]">
+                                                        Zone: {sl.location?.name} ({sl.location?.code})
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="font-bold text-blue-600 text-base">
-                                                    {sl.quantity}
-                                                </span>
-                                                <span className="text-xs text-slate-400 ml-1">
-                                                    {viewingProduct.unit_of_measure}
-                                                </span>
-                                            </div>
+                                            <span className="font-mono font-bold text-slate-900 text-sm">
+                                                {sl.quantity} {viewingProduct.unit_of_measure}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
-                            ) : (
-                                <p className="text-xs text-slate-400 italic">No specific stock locations allocated.</p>
                             )}
                         </div>
 
                         <div className="flex justify-end pt-3 border-t border-slate-100">
                             <button
-                                type="button"
                                 onClick={() => setDetailModalOpen(false)}
-                                className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                                className="ss-button ss-button-secondary"
                             >
                                 Close
                             </button>
@@ -465,57 +492,53 @@ export default function ProductsPage() {
                 )}
             </Modal>
 
-            {/* Edit Product Modal */}
+            {/* EDIT PRODUCT MODAL */}
             <Modal
                 isOpen={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
                 title="Edit Product"
-                description="Update product attributes and unit metadata."
+                description="Update catalog specifications and metadata."
             >
                 <form onSubmit={handleSaveEdit} className="space-y-4">
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
-                            <AlertCircle size={16} className="shrink-0" />
-                            <span>{error}</span>
-                        </div>
+                        <Alert type="error" className="mb-2">
+                            {error}
+                        </Alert>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="ss-label">
+                            Product Name <span className="required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            required
+                            className="ss-input"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Product Name <span className="text-rose-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                SKU / Item Code <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                SKU / Code <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
                                 value={editSku}
                                 onChange={(e) => setEditSku(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                className="ss-input uppercase font-mono"
                             />
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Category
-                            </label>
+                            <label className="ss-label">Category</label>
                             <select
                                 value={editCategory}
                                 onChange={(e) => setEditCategory(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="ss-select"
                             >
                                 <option value="">No Category</option>
                                 {categories.map((c) => (
@@ -525,59 +548,56 @@ export default function ProductsPage() {
                                 ))}
                             </select>
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Unit of Measure
-                            </label>
+                            <label className="ss-label">Unit of Measure</label>
                             <input
                                 type="text"
-                                placeholder="Units, Pieces, Kg, Boxes"
                                 value={editUom}
                                 onChange={(e) => setEditUom(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="ss-input"
                             />
+                        </div>
+
+                        <div>
+                            <label className="ss-label">Active Status</label>
+                            <select
+                                value={editActive ? "true" : "false"}
+                                onChange={(e) => setEditActive(e.target.value === "true")}
+                                className="ss-select"
+                            >
+                                <option value="true">Active in Catalog</option>
+                                <option value="false">Archived / Inactive</option>
+                            </select>
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                            Description
-                        </label>
+                        <label className="ss-label">Description</label>
                         <textarea
                             rows={3}
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="ss-textarea"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                        <input
-                            type="checkbox"
-                            id="editActive"
-                            checked={editActive}
-                            onChange={(e) => setEditActive(e.target.checked)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        />
-                        <label htmlFor="editActive" className="text-sm font-medium text-slate-700">
-                            Product is Active
-                        </label>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={() => setEditModalOpen(false)}
-                            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs disabled:opacity-50"
+                            className="ss-button ss-button-primary"
                         >
-                            {saving ? "Saving..." : "Update Product"}
+                            {saving ? "Saving..." : "Save Changes"}
                         </button>
                     </div>
                 </form>

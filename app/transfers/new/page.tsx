@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { Alert, Button } from "@/components/ui";
 import { Product, Location, StockLevel } from "@/lib/types";
 import {
     ArrowLeft,
     Plus,
     Trash2,
     ArrowRightLeft,
-    CheckCircle,
-    AlertCircle,
     Boxes,
+    Building2,
+    ArrowDown,
+    Info,
 } from "lucide-react";
 
 interface TransferLineItem {
@@ -130,7 +132,7 @@ export default function NewTransferPage() {
             return;
         }
         if (sourceLocationId === destinationLocationId) {
-            setError("Source and destination locations cannot be the same.");
+            setError("Source and destination locations cannot be the same zone.");
             return;
         }
 
@@ -146,7 +148,7 @@ export default function NewTransferPage() {
             const avail = getAvailableStockInSource(it.product_id);
             if (avail < it.quantity) {
                 setError(
-                    `Insufficient stock in source location (Available: ${avail}, Requested: ${it.quantity}).`
+                    `Insufficient stock in source location for item (Available: ${avail}, Requested: ${it.quantity}).`
                 );
                 return;
             }
@@ -165,7 +167,7 @@ export default function NewTransferPage() {
                 throw new Error("You must be logged in to create a transfer. Please sign in again.");
             }
 
-            // 1. Create transfer record
+            // 1. Create transfer header
             const { data: trf, error: trfError } = await supabase
                 .from("transfers")
                 .insert({
@@ -181,7 +183,7 @@ export default function NewTransferPage() {
 
             if (trfError) throw trfError;
 
-            // 2. Insert line items
+            // 2. Insert items
             if (trf) {
                 const itemRows = items.map((i) => ({
                     transfer_id: trf.id,
@@ -196,7 +198,7 @@ export default function NewTransferPage() {
                 if (itemsError) throw itemsError;
             }
 
-            setSuccessMessage("Internal transfer created successfully!");
+            setSuccessMessage("Internal transfer created successfully! Opening detail view...");
             setTimeout(() => {
                 router.push(`/transfers/${trf.id}`);
             }, 1000);
@@ -213,176 +215,231 @@ export default function NewTransferPage() {
         }
     };
 
+    const sourceLoc = locations.find((l) => l.id === sourceLocationId);
+    const destLoc = locations.find((l) => l.id === destinationLocationId);
+    const totalQuantity = items.reduce((acc, curr) => acc + (Number(curr.quantity) || 0), 0);
+
     return (
         <AppLayout
-            title="New Internal Transfer"
-            description="Relocate inventory stock between warehouses, racks, or staging floors."
+            title="Create Internal Transfer"
+            description="Relocate inventory stock between warehouse locations, zones, or processing floors."
             actions={
                 <Link
                     href="/transfers"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                    className="ss-button ss-button-secondary"
                 >
                     <ArrowLeft size={16} />
                     Back to Transfers
                 </Link>
             }
         >
-            <div className="max-w-4xl mx-auto">
-                {error && (
-                    <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-3">
-                        <AlertCircle size={18} className="shrink-0" />
-                        <span>{error}</span>
+            <div className="max-w-4xl mx-auto space-y-6">
+                {/* Visual Flow Banner */}
+                <div className="ss-card p-5 bg-gradient-to-r from-slate-50 to-blue-50/40 border-slate-200">
+                    <div className="grid grid-cols-1 md:grid-cols-11 items-center gap-3">
+                        <div className="md:col-span-5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                SOURCE STORAGE ZONE
+                            </span>
+                            <h4 className="font-bold text-slate-900 text-sm">
+                                {sourceLoc ? `${sourceLoc.warehouse?.name} — ${sourceLoc.name} (${sourceLoc.code})` : "Select Source"}
+                            </h4>
+                        </div>
+
+                        <div className="md:col-span-1 flex justify-center py-2 md:py-0">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                                <ArrowRightLeft size={15} />
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-5 bg-white p-3.5 rounded-xl border border-blue-200 shadow-xs">
+                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block mb-1">
+                                DESTINATION STORAGE ZONE
+                            </span>
+                            <h4 className="font-bold text-slate-900 text-sm">
+                                {destLoc ? `${destLoc.warehouse?.name} — ${destLoc.name} (${destLoc.code})` : "Select Destination"}
+                            </h4>
+                        </div>
                     </div>
+
+                    <div className="mt-3.5 flex items-center gap-2 text-xs text-slate-500 bg-white/70 p-2 rounded-lg">
+                        <Info size={14} className="text-blue-600 shrink-0" />
+                        <span>
+                            <strong>Note:</strong> Internal transfers move goods between locations without modifying overall company inventory balances.
+                        </span>
+                    </div>
+                </div>
+
+                {error && (
+                    <Alert type="error">
+                        {error}
+                    </Alert>
                 )}
 
                 {successMessage && (
-                    <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center gap-3">
-                        <CheckCircle size={18} className="shrink-0 text-emerald-600" />
-                        <span>{successMessage}</span>
-                    </div>
+                    <Alert type="success">
+                        {successMessage}
+                    </Alert>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Header Info */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
-                        <h3 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
-                            <ArrowRightLeft size={18} className="text-indigo-600" />
-                            Transfer Routing
-                        </h3>
+                    {/* SECTION 1: Transfer Metadata & Location Pair */}
+                    <div className="ss-card p-6">
+                        <div className="flex items-center gap-2.5 pb-3.5 mb-5 border-b border-slate-100">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                <ArrowRightLeft size={18} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900">
+                                    Transfer Locations & Routing
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    Define source picking zone and target destination.
+                                </p>
+                            </div>
+                        </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Transfer Number <span className="text-rose-500">*</span>
+                                <label className="ss-label">
+                                    Transfer # <span className="required">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={transferNumber}
                                     onChange={(e) => setTransferNumber(e.target.value)}
                                     required
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono"
+                                    className="ss-input font-mono uppercase font-bold"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Source Location <span className="text-rose-500">*</span>
+                                <label className="ss-label">
+                                    Source Location <span className="required">*</span>
                                 </label>
                                 <select
                                     value={sourceLocationId}
                                     onChange={(e) => setSourceLocationId(e.target.value)}
                                     required
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="ss-select font-medium"
                                 >
-                                    <option value="">Select Source</option>
+                                    <option value="">Select Source Location</option>
                                     {locations.map((l) => (
                                         <option key={l.id} value={l.id}>
-                                            {l.warehouse?.name} - {l.name} ({l.code})
+                                            {l.warehouse?.name} / {l.name} ({l.code})
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Destination Location <span className="text-rose-500">*</span>
+                                <label className="ss-label">
+                                    Destination Location <span className="required">*</span>
                                 </label>
                                 <select
                                     value={destinationLocationId}
                                     onChange={(e) => setDestinationLocationId(e.target.value)}
                                     required
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="ss-select font-medium"
                                 >
-                                    <option value="">Select Destination</option>
+                                    <option value="">Select Destination Location</option>
                                     {locations.map((l) => (
                                         <option key={l.id} value={l.id}>
-                                            {l.warehouse?.name} - {l.name} ({l.code})
+                                            {l.warehouse?.name} / {l.name} ({l.code})
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Initial Status
-                                </label>
+                                <label className="ss-label">Initial Status</label>
                                 <select
                                     value={status}
                                     onChange={(e) => setStatus(e.target.value as any)}
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="ss-select"
                                 >
-                                    <option value="ready">Ready (Ready for Transfer Validation)</option>
+                                    <option value="ready">Ready (Awaiting Execution Validation)</option>
+                                    <option value="waiting">Waiting (In Transit / Picking)</option>
                                     <option value="draft">Draft</option>
-                                    <option value="waiting">Waiting</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Notes / Reason for Movement
-                                </label>
+                                <label className="ss-label">Transfer Purpose / Notes</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Stock replenishment for production floor..."
+                                    placeholder="e.g. Replenishment for production line, consolidation"
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="ss-input"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Transfer Items */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                                    <Boxes size={18} className="text-indigo-600" />
-                                    Products to Transfer
-                                </h3>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Stock will decrease from the source and increase in the destination. Total count remains constant.
-                                </p>
+                    {/* SECTION 2: Line Items */}
+                    <div className="ss-card p-6">
+                        <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <Boxes size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900">
+                                        Relocation Line Items
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        Select products and moving quantities.
+                                    </p>
+                                </div>
                             </div>
+
                             <button
                                 type="button"
                                 onClick={addItem}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
+                                className="ss-button ss-button-secondary ss-button-sm"
                             >
-                                <Plus size={15} />
+                                <Plus size={14} />
                                 Add Item Row
                             </button>
                         </div>
 
                         <div className="space-y-3">
-                            {items.map((item, index) => {
+                            {items.map((item) => {
                                 const avail = getAvailableStockInSource(item.product_id);
-                                const isInsufficient = avail < item.quantity;
+                                const isInsufficient = item.product_id && sourceLocationId && avail < item.quantity;
 
                                 return (
                                     <div
                                         key={item.id}
-                                        className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-xl border ${
+                                        className={`p-3.5 rounded-lg border grid grid-cols-1 sm:grid-cols-12 gap-3 items-center transition ${
                                             isInsufficient
-                                                ? "bg-rose-50/50 border-rose-300"
+                                                ? "bg-rose-50/50 border-rose-200"
                                                 : "bg-slate-50 border-slate-200"
                                         }`}
                                     >
-                                        <span className="text-xs font-bold text-slate-400 w-6 text-center">
-                                            #{index + 1}
-                                        </span>
-
-                                        <div className="flex-1 w-full">
-                                            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1 sm:hidden">
-                                                Product
-                                            </label>
+                                        <div className="sm:col-span-8">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="ss-label text-[11px] mb-0">
+                                                    Product to Transfer
+                                                </label>
+                                                {item.product_id && sourceLocationId && (
+                                                    <span
+                                                        className={`text-[10px] font-bold ${
+                                                            isInsufficient ? "text-rose-600" : "text-emerald-600"
+                                                        }`}
+                                                    >
+                                                        Source On-Hand: {avail}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <select
                                                 value={item.product_id}
                                                 onChange={(e) => updateItem(item.id, "product_id", e.target.value)}
                                                 required
-                                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500"
+                                                className="ss-select"
                                             >
                                                 <option value="">Select Product</option>
                                                 {products.map((p) => (
@@ -393,53 +450,69 @@ export default function NewTransferPage() {
                                             </select>
                                         </div>
 
-                                        <div className="w-full sm:w-44">
-                                            <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-                                                <span>Transfer Qty</span>
-                                                <span className={avail < item.quantity ? "text-rose-600 font-bold" : "text-slate-500 font-medium"}>
-                                                    Source Avail: {avail}
-                                                </span>
-                                            </div>
+                                        <div className="sm:col-span-3">
+                                            <label className="ss-label text-[11px] mb-1">
+                                                Transfer Qty
+                                            </label>
                                             <input
                                                 type="number"
                                                 min="1"
                                                 value={item.quantity}
-                                                onChange={(e) =>
-                                                    updateItem(item.id, "quantity", Math.max(1, parseInt(e.target.value) || 1))
-                                                }
+                                                onChange={(e) => updateItem(item.id, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
                                                 required
-                                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 font-bold text-center focus:ring-2 focus:ring-blue-500"
+                                                className={`ss-input font-bold font-mono ${
+                                                    isInsufficient ? "border-rose-400 text-rose-700" : ""
+                                                }`}
                                             />
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            disabled={items.length <= 1}
-                                            onClick={() => removeItem(item.id)}
-                                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30 self-end sm:self-center"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="sm:col-span-1 flex justify-end pt-5 sm:pt-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeItem(item.id)}
+                                                disabled={items.length <= 1}
+                                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30"
+                                                title="Remove Row"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}
                         </div>
+
+                        {/* Total Summary Footer */}
+                        <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <span className="text-slate-500 font-medium">
+                                Total Items: <span className="text-slate-900 font-bold">{items.length} rows</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                                    Total Moving Units:
+                                </span>
+                                <span className="font-mono font-bold text-slate-900 text-sm bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                                    {totalQuantity} units
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex justify-end gap-3">
+                    {/* Submit Actions */}
+                    <div className="flex items-center justify-end gap-3 pt-2">
                         <Link
                             href="/transfers"
-                            className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </Link>
-                        <button
+                        <Button
                             type="submit"
-                            disabled={loading}
-                            className="px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2"
+                            variant="primary"
+                            isLoading={loading}
                         >
-                            {loading ? "Creating..." : "Create Internal Transfer"}
-                        </button>
+                            Create Transfer Order
+                        </Button>
                     </div>
                 </form>
             </div>

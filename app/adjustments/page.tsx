@@ -6,18 +6,20 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { TableSkeleton, Alert } from "@/components/ui";
 import { Adjustment } from "@/lib/types";
 import {
     Plus,
     Search,
     SlidersHorizontal,
     Filter,
-    ChevronRight,
-    CheckCircle,
+    Calendar,
+    Eye,
 } from "lucide-react";
 
 interface AdjustmentWithDetails extends Adjustment {
     items_count?: number;
+    total_difference?: number;
 }
 
 export default function AdjustmentsPage() {
@@ -38,9 +40,11 @@ export default function AdjustmentsPage() {
 
             const enriched = (adjs || []).map((a) => {
                 const items = a.adjustment_items || [];
+                const netDiff = items.reduce((acc: number, curr: any) => acc + (Number(curr.difference) || 0), 0);
                 return {
                     ...a,
                     items_count: items.length,
+                    total_difference: netDiff,
                 };
             });
 
@@ -69,39 +73,39 @@ export default function AdjustmentsPage() {
 
     return (
         <AppLayout
-            title="Inventory Adjustments"
-            description="Reconcile system quantities with physical warehouse counts and record discrepancies."
+            title="Stock Adjustments & Audits"
+            description="Reconcile physical inventory counts against system records to resolve discrepancies."
             actions={
                 <Link
                     href="/adjustments/new"
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
+                    className="ss-button ss-button-primary"
                 >
-                    <Plus size={18} />
+                    <Plus size={16} />
                     New Adjustment
                 </Link>
             }
         >
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
+            {/* Filter Bar */}
+            <div className="ss-card p-4 mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1">
                     <div className="relative w-full sm:w-72">
                         <Search
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                         />
                         <input
                             type="text"
-                            placeholder="Search by adjustment #, warehouse, notes..."
+                            placeholder="Search by adjustment #, warehouse..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                            className="ss-input !pl-9"
                         />
                     </div>
 
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="ss-select w-full sm:w-40"
                     >
                         <option value="all">All Statuses</option>
                         <option value="draft">Draft</option>
@@ -112,85 +116,103 @@ export default function AdjustmentsPage() {
                     </select>
                 </div>
 
-                <div className="text-sm font-medium text-slate-500 w-full md:w-auto text-right">
-                    Showing <span className="text-slate-900 font-bold">{filteredAdjustments.length}</span> adjustments
+                <div className="text-xs text-slate-500 font-medium whitespace-nowrap">
+                    Showing <span className="font-bold text-slate-900">{filteredAdjustments.length}</span> of {adjustments.length} adjustments
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Adjustments Table */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading adjustments...</p>
-                </div>
+                <TableSkeleton rows={5} columns={6} />
             ) : filteredAdjustments.length === 0 ? (
                 <EmptyState
                     icon={SlidersHorizontal}
-                    title={searchQuery || statusFilter !== "all" ? "No adjustments match your search" : "No stock adjustments recorded"}
+                    title="No adjustments found"
                     description={
                         searchQuery || statusFilter !== "all"
-                            ? "Try adjusting your search query or filter."
-                            : "Perform a stock adjustment to align system inventory with physical shelf audits."
+                            ? "No adjustments match your current filter parameters."
+                            : "Perform an adjustment to correct stock discrepancies discovered during physical cycle counts."
                     }
-                    actionLabel={searchQuery || statusFilter !== "all" ? undefined : "Create Adjustment"}
+                    actionLabel="New Adjustment"
                     actionHref="/adjustments/new"
                 />
             ) : (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Adjustment #</th>
-                                    <th className="px-6 py-4">Warehouse</th>
-                                    <th className="px-6 py-4 text-center">Audited Lines</th>
-                                    <th className="px-6 py-4">Notes</th>
-                                    <th className="px-6 py-4">Date</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredAdjustments.map((a) => (
-                                    <tr key={a.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4 font-mono font-bold text-slate-900">
+                <div className="ss-table-wrapper">
+                    <table className="ss-table">
+                        <thead>
+                            <tr>
+                                <th>Adjustment #</th>
+                                <th>Warehouse Facility</th>
+                                <th>Reconciled Items</th>
+                                <th>Net Correction</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th className="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredAdjustments.map((a) => (
+                                <tr key={a.id}>
+                                    <td>
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 font-bold text-xs">
+                                                <SlidersHorizontal size={14} />
+                                            </div>
                                             <Link
                                                 href={`/adjustments/${a.id}`}
-                                                className="text-amber-600 hover:underline flex items-center gap-1.5"
+                                                className="font-mono font-bold text-slate-900 hover:text-blue-600 transition"
                                             >
-                                                <SlidersHorizontal size={16} />
                                                 {a.adjustment_number}
                                             </Link>
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-slate-800">
-                                            {a.warehouse?.name || "Main Warehouse"}
-                                        </td>
-                                        <td className="px-6 py-4 text-center font-semibold text-slate-900">
-                                            {a.items_count} item{a.items_count === 1 ? "" : "s"}
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-500 max-w-xs truncate">
-                                            {a.notes || "Physical stock count"}
-                                        </td>
-                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="font-medium text-slate-800">
+                                            {a.warehouse?.name || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="text-xs text-slate-600">
+                                            {a.items_count} SKU items
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span
+                                            className={`font-mono font-bold text-xs ${
+                                                (a.total_difference || 0) > 0
+                                                    ? "text-emerald-600"
+                                                    : (a.total_difference || 0) < 0
+                                                    ? "text-rose-600"
+                                                    : "text-slate-600"
+                                            }`}
+                                        >
+                                            {(a.total_difference || 0) > 0
+                                                ? `+${a.total_difference}`
+                                                : a.total_difference}{" "}
+                                            units
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-500 text-xs">
                                             {new Date(a.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={a.status} type="document" />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <Link
-                                                href={`/adjustments/${a.id}`}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                                            >
-                                                View
-                                                <ChevronRight size={14} />
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <StatusBadge status={a.status} type="document" />
+                                    </td>
+                                    <td className="text-right">
+                                        <Link
+                                            href={`/adjustments/${a.id}`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition"
+                                        >
+                                            <Eye size={13} />
+                                            View
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </AppLayout>

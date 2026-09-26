@@ -5,8 +5,9 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Modal } from "@/components/Modal";
 import { EmptyState } from "@/components/EmptyState";
+import { Alert, TableSkeleton } from "@/components/ui";
 import { Category } from "@/lib/types";
-import { Plus, Search, Tag, Edit, Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Search, Tag, Edit, Trash2 } from "lucide-react";
 
 interface CategoryWithCount extends Category {
     products_count?: number;
@@ -138,9 +139,7 @@ export default function CategoriesPage() {
             return;
         }
 
-        if (!confirm(`Are you sure you want to delete the category "${cat.name}"?`)) {
-            return;
-        }
+        if (!confirm(`Are you sure you want to delete category "${cat.name}"?`)) return;
 
         try {
             const { error: delError } = await supabase
@@ -150,7 +149,7 @@ export default function CategoriesPage() {
 
             if (delError) throw delError;
 
-            setSuccessMessage(`Category "${cat.name}" deleted successfully.`);
+            setSuccessMessage(`Category "${cat.name}" deleted.`);
             loadCategories();
             setTimeout(() => setSuccessMessage(""), 4000);
         } catch (err: unknown) {
@@ -167,141 +166,141 @@ export default function CategoriesPage() {
 
     return (
         <AppLayout
-            title="Categories"
-            description="Organize your inventory catalog with product categories."
+            title="Product Categories"
+            description="Organize catalog items by classification, materials, departments, or families."
             actions={
                 <button
                     onClick={openCreateModal}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
+                    className="ss-button ss-button-primary"
                 >
-                    <Plus size={18} />
+                    <Plus size={16} />
                     Add Category
                 </button>
             }
         >
-            {/* Feedback notifications */}
-            {successMessage && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-3 text-sm">
-                    <CheckCircle className="text-emerald-600 shrink-0" size={18} />
-                    <span>{successMessage}</span>
-                </div>
+            {error && (
+                <Alert type="error" className="mb-6">
+                    {error}
+                </Alert>
             )}
 
-            {/* Search and stats bar */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                <div className="relative w-full sm:w-80">
+            {successMessage && (
+                <Alert type="success" className="mb-6">
+                    {successMessage}
+                </Alert>
+            )}
+
+            {/* Filter Bar */}
+            <div className="ss-card p-4 mb-6 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                <div className="relative w-full sm:w-72">
                     <Search
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                     />
                     <input
                         type="text"
                         placeholder="Search categories..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                        className="ss-input !pl-9"
                     />
                 </div>
-                <div className="text-sm font-medium text-slate-500 w-full sm:w-auto text-right">
-                    Showing <span className="text-slate-900 font-bold">{filteredCategories.length}</span> categories
-                </div>
+                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
+                    {filteredCategories.length} {filteredCategories.length === 1 ? "Category" : "Categories"} registered
+                </span>
             </div>
 
-            {/* Categories Table / Grid */}
+            {/* Categories Table */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading categories...</p>
-                </div>
+                <TableSkeleton rows={5} columns={4} />
             ) : filteredCategories.length === 0 ? (
                 <EmptyState
                     icon={Tag}
-                    title={searchQuery ? "No categories match your search" : "No categories yet"}
+                    title="No categories found"
                     description={
                         searchQuery
-                            ? "Try refining your search query or clear the filter."
-                            : "Create your first product category to group and organize your stock items."
+                            ? "No categories match your search."
+                            : "Create your first category to group related items."
                     }
-                    actionLabel={searchQuery ? undefined : "Add Category"}
-                    onAction={searchQuery ? undefined : openCreateModal}
+                    actionLabel="Add Category"
+                    onAction={openCreateModal}
                 />
             ) : (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50/80 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Category Name</th>
-                                    <th className="px-6 py-4">Description</th>
-                                    <th className="px-6 py-4 text-center">Products</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-normal">
-                                {filteredCategories.map((cat) => (
-                                    <tr key={cat.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                                                    <Tag size={18} />
-                                                </div>
-                                                <span className="font-semibold text-slate-900">
-                                                    {cat.name}
-                                                </span>
+                <div className="ss-table-wrapper">
+                    <table className="ss-table">
+                        <thead>
+                            <tr>
+                                <th>Category Name</th>
+                                <th>Description</th>
+                                <th>Assigned Products</th>
+                                <th className="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredCategories.map((c) => (
+                                <tr key={c.id}>
+                                    <td>
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                                <Tag size={14} />
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-500 max-w-md truncate">
-                                            {cat.description || "—"}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
-                                                {cat.products_count} product{cat.products_count === 1 ? "" : "s"}
+                                            <span className="font-semibold text-slate-900">
+                                                {c.name}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => openEditModal(cat)}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                    title="Edit Category"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(cat)}
-                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                                                    title="Delete Category"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-600 text-xs">
+                                            {c.description || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                                            {c.products_count || 0} items
+                                        </span>
+                                    </td>
+                                    <td className="text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button
+                                                onClick={() => openEditModal(c)}
+                                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                                title="Edit Category"
+                                            >
+                                                <Edit size={15} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(c)}
+                                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                                                title="Delete Category"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
 
-            {/* Create/Edit Modal */}
+            {/* CATEGORY MODAL */}
             <Modal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
                 title={editingCategory ? "Edit Category" : "Add New Category"}
-                description="Categorize your items to easily filter reports and track stock."
+                description="Taxonomy name and classification details."
             >
                 <form onSubmit={handleSave} className="space-y-4">
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
-                            <AlertCircle size={16} className="shrink-0" />
-                            <span>{error}</span>
-                        </div>
+                        <Alert type="error" className="mb-2">
+                            {error}
+                        </Alert>
                     )}
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                            Category Name <span className="text-rose-500">*</span>
+                        <label className="ss-label">
+                            Category Name <span className="required">*</span>
                         </label>
                         <input
                             type="text"
@@ -309,37 +308,35 @@ export default function CategoriesPage() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
-                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="ss-input"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                            Description
-                        </label>
+                        <label className="ss-label">Description</label>
                         <textarea
                             rows={3}
-                            placeholder="Optional notes or description about this category..."
+                            placeholder="Brief description of items falling under this category..."
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="ss-textarea"
                         />
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={() => setModalOpen(false)}
-                            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs disabled:opacity-50"
+                            className="ss-button ss-button-primary"
                         >
-                            {saving ? "Saving..." : editingCategory ? "Update Category" : "Create Category"}
+                            {saving ? "Saving..." : "Save Category"}
                         </button>
                     </div>
                 </form>

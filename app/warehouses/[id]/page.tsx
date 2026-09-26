@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Modal } from "@/components/Modal";
 import { EmptyState } from "@/components/EmptyState";
+import { Alert, TableSkeleton } from "@/components/ui";
 import { Warehouse, Location, StockLevel } from "@/lib/types";
 import {
     Warehouse as WarehouseIcon,
@@ -14,9 +15,8 @@ import {
     ArrowLeft,
     Plus,
     Trash2,
-    CheckCircle,
-    AlertCircle,
     Boxes,
+    Layers,
 } from "lucide-react";
 
 export default function WarehouseDetailPage() {
@@ -104,7 +104,7 @@ export default function WarehouseDetailPage() {
 
             if (insertError) throw insertError;
 
-            setSuccessMessage("Location added successfully.");
+            setSuccessMessage("Storage zone added successfully.");
             setLocationModalOpen(false);
             setLocName("");
             setLocCode("");
@@ -120,7 +120,17 @@ export default function WarehouseDetailPage() {
     };
 
     const handleDeleteLocation = async (loc: Location) => {
-        if (!confirm(`Are you sure you want to delete location "${loc.name}"?`)) return;
+        const hasStock = stockLevels.some(
+            (s) => s.location_id === loc.id && Number(s.quantity) > 0
+        );
+        if (hasStock) {
+            alert(
+                `Cannot delete location "${loc.name}" because it currently holds inventory. Transfer or adjust the stock to 0 before deleting.`
+            );
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete storage zone "${loc.name}"?`)) return;
 
         try {
             const { error: delError } = await supabase.from("locations").delete().eq("id", loc.id);
@@ -139,10 +149,7 @@ export default function WarehouseDetailPage() {
     if (loading) {
         return (
             <AppLayout title="Warehouse Details">
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading warehouse details...</p>
-                </div>
+                <TableSkeleton rows={4} columns={4} />
             </AppLayout>
         );
     }
@@ -153,7 +160,7 @@ export default function WarehouseDetailPage() {
                 <EmptyState
                     icon={WarehouseIcon}
                     title="Warehouse Not Found"
-                    description="The requested warehouse could not be found."
+                    description="The requested warehouse facility does not exist or has been removed."
                     actionLabel="Back to Warehouses"
                     actionHref="/warehouses"
                 />
@@ -161,273 +168,251 @@ export default function WarehouseDetailPage() {
         );
     }
 
+    const totalUnitsInWarehouse = stockLevels.reduce(
+        (sum, curr) => sum + (Number(curr.quantity) || 0),
+        0
+    );
+
     return (
         <AppLayout
-            title={warehouse.name}
-            description={`Warehouse Code: ${warehouse.code}`}
+            title={`${warehouse.name} (${warehouse.code})`}
+            description={warehouse.address || "Warehouse facility details, zones, and live stock holdings."}
             actions={
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <Link
                         href="/warehouses"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                        className="ss-button ss-button-secondary"
                     >
                         <ArrowLeft size={16} />
                         Back to Warehouses
                     </Link>
                     <button
-                        onClick={() => setLocationModalOpen(true)}
-                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold text-sm transition shadow-xs"
+                        onClick={() => {
+                            setLocName("");
+                            setLocCode("");
+                            setError("");
+                            setLocationModalOpen(true);
+                        }}
+                        className="ss-button ss-button-primary"
                     >
-                        <Plus size={18} />
-                        Add Location Zone
+                        <Plus size={16} />
+                        Add Storage Zone
                     </button>
                 </div>
             }
         >
-            {successMessage && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-3 text-sm">
-                    <CheckCircle className="text-emerald-600 shrink-0" size={18} />
-                    <span>{successMessage}</span>
-                </div>
+            {error && (
+                <Alert type="error" className="mb-6">
+                    {error}
+                </Alert>
             )}
 
-            {/* Warehouse Overview Info */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                            <WarehouseIcon size={28} />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900">{warehouse.name}</h2>
-                            <p className="text-sm text-slate-500 flex items-center gap-1 mt-0.5">
-                                <MapPin size={15} className="text-slate-400" />
-                                {warehouse.address || "No physical address provided"}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-800">
-                            CODE: {warehouse.code}
-                        </span>
-                        <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                warehouse.is_active
-                                    ? "bg-emerald-100 text-emerald-800"
-                                    : "bg-slate-100 text-slate-600"
-                            }`}
-                        >
-                            {warehouse.is_active ? "Operational" : "Inactive"}
-                        </span>
-                    </div>
+            {successMessage && (
+                <Alert type="success" className="mb-6">
+                    {successMessage}
+                </Alert>
+            )}
+
+            {/* Top Summary Banner */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="ss-card p-4">
+                    <span className="kpi-label">Facility Code</span>
+                    <h4 className="kpi-value font-mono">{warehouse.code}</h4>
+                    <span className="text-xs text-slate-500 mt-1 block">
+                        {warehouse.is_active ? "Operational" : "Inactive"}
+                    </span>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6">
-                    <div className="p-4 bg-slate-50 rounded-xl">
-                        <p className="text-xs font-medium text-slate-500">Total Zones</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">{locations.length}</p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-xl">
-                        <p className="text-xs font-medium text-slate-500">Stock Records</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">{stockLevels.length}</p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-xl">
-                        <p className="text-xs font-medium text-slate-500">Total Units</p>
-                        <p className="text-2xl font-bold text-blue-600 mt-1">
-                            {stockLevels.reduce((acc, s) => acc + (Number(s.quantity) || 0), 0)}
-                        </p>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-xl">
-                        <p className="text-xs font-medium text-slate-500">Status</p>
-                        <p className="text-sm font-bold text-slate-900 mt-2">
-                            {warehouse.is_active ? "Active for Routing" : "Routing Disabled"}
-                        </p>
-                    </div>
+                <div className="ss-card p-4">
+                    <span className="kpi-label">Storage Zones / Aisles</span>
+                    <h4 className="kpi-value">{locations.length}</h4>
+                    <span className="text-xs text-slate-500 mt-1 block">Configured bay zones</span>
+                </div>
+
+                <div className="ss-card p-4">
+                    <span className="kpi-label">Total Units in Stock</span>
+                    <h4 className="kpi-value text-blue-600 font-mono">{totalUnitsInWarehouse}</h4>
+                    <span className="text-xs text-slate-500 mt-1 block">Across all facility bins</span>
                 </div>
             </div>
 
-            {/* Locations / Zones List */}
-            <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-slate-900">Locations & Zones</h3>
-                    <button
-                        onClick={() => setLocationModalOpen(true)}
-                        className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                    >
-                        <Plus size={16} />
-                        Add Location
-                    </button>
+            {/* Storage Zones & Associated Stock */}
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                            Storage Zones & Bin Inventory
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                            Sub-locations configured in this warehouse facility.
+                        </p>
+                    </div>
                 </div>
 
                 {locations.length === 0 ? (
                     <EmptyState
-                        icon={MapPin}
-                        title="No locations defined in this warehouse"
-                        description="Add storage locations such as racks, aisles, or bins to track exact stock placements."
-                        actionLabel="Add First Location"
+                        icon={Layers}
+                        title="No storage zones defined"
+                        description="Add storage zones (aisles, racks, bays) to begin allocating items into this warehouse."
+                        actionLabel="Add Storage Zone"
                         onAction={() => setLocationModalOpen(true)}
                     />
                 ) : (
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Location Name</th>
-                                    <th className="px-6 py-4">Code</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {locations.map((loc) => (
-                                    <tr key={loc.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2">
-                                            <MapPin size={16} className="text-blue-500" />
-                                            {loc.name}
-                                        </td>
-                                        <td className="px-6 py-4 font-mono font-medium text-slate-600">
-                                            {loc.code}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span
-                                                className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                                    loc.is_active
-                                                        ? "bg-emerald-100 text-emerald-800"
-                                                        : "bg-slate-100 text-slate-600"
-                                                }`}
-                                            >
-                                                {loc.is_active ? "Active" : "Inactive"}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => handleDeleteLocation(loc)}
-                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                                                title="Delete Location"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {locations.map((loc) => {
+                            const locStocks = stockLevels.filter((s) => s.location_id === loc.id);
+                            const locTotal = locStocks.reduce(
+                                (sum, s) => sum + (Number(s.quantity) || 0),
+                                0
+                            );
+
+                            return (
+                                <div key={loc.id} className="ss-card p-5 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex items-start justify-between gap-2 mb-3">
+                                            <div>
+                                                <h4 className="font-bold text-slate-900 text-sm">
+                                                    {loc.name}
+                                                </h4>
+                                                <span className="font-mono text-[11px] text-slate-400 font-semibold">
+                                                    CODE: {loc.code}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span
+                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                                        loc.is_active
+                                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                            : "bg-slate-100 text-slate-500"
+                                                    }`}
+                                                >
+                                                    {loc.is_active ? "Active" : "Inactive"}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleDeleteLocation(loc)}
+                                                    className="p-1 text-slate-400 hover:text-rose-600 rounded transition"
+                                                    title="Delete Zone"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-slate-100">
+                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                <span className="font-semibold text-slate-600">
+                                                    Holding ({locStocks.length} SKUs):
+                                                </span>
+                                                <span className="font-mono font-bold text-slate-900">
+                                                    {locTotal} units
+                                                </span>
+                                            </div>
+
+                                            {locStocks.length === 0 ? (
+                                                <p className="text-xs text-slate-400 italic py-2">
+                                                    Zone currently empty.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                                    {locStocks.map((s) => (
+                                                        <div
+                                                            key={s.id}
+                                                            className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100 text-xs"
+                                                        >
+                                                            <div className="min-w-0 flex-1 pr-2">
+                                                                <span className="font-medium text-slate-800 block truncate">
+                                                                    {s.product?.name || "Product"}
+                                                                </span>
+                                                                <span className="text-[10px] font-mono text-slate-400">
+                                                                    {s.product?.sku}
+                                                                </span>
+                                                            </div>
+                                                            <span className="font-mono font-bold text-slate-900 shrink-0">
+                                                                {s.quantity} {s.product?.unit_of_measure || "Units"}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* Current Inventory in this Warehouse */}
-            <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-4">Stock on Hand in this Facility</h3>
-                {stockLevels.length === 0 ? (
-                    <div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-sm text-slate-500">
-                        No product stock currently stored in this warehouse. Receive inventory to see stock levels.
-                    </div>
-                ) : (
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Product</th>
-                                    <th className="px-6 py-4">SKU</th>
-                                    <th className="px-6 py-4">Location Zone</th>
-                                    <th className="px-6 py-4 text-right">Quantity</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {stockLevels.map((sl) => (
-                                    <tr key={sl.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4 font-semibold text-slate-900">
-                                            {sl.product?.name || "Product"}
-                                        </td>
-                                        <td className="px-6 py-4 font-mono text-xs text-slate-600">
-                                            {sl.product?.sku || "—"}
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-slate-700">
-                                            {sl.location?.name} ({sl.location?.code})
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                            {sl.quantity} {sl.product?.unit_of_measure || "Units"}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Add Location Modal */}
+            {/* ADD LOCATION MODAL */}
             <Modal
                 isOpen={locationModalOpen}
                 onClose={() => setLocationModalOpen(false)}
-                title="Add Storage Location"
-                description={`Create a new storage location inside ${warehouse.name}.`}
+                title={`Add Storage Zone to ${warehouse.name}`}
+                description="Specify the zone name, code identifier, and initial operational status."
             >
                 <form onSubmit={handleCreateLocation} className="space-y-4">
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
-                            <AlertCircle size={16} className="shrink-0" />
-                            <span>{error}</span>
-                        </div>
+                        <Alert type="error" className="mb-2">
+                            {error}
+                        </Alert>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Location Name <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                Zone Name <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g. Aisle 3 - Shelf B"
+                                placeholder="e.g. Aisle 3 - Bay 2"
                                 value={locName}
                                 onChange={(e) => setLocName(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="ss-input"
                             />
                         </div>
+
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Location Code <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                Zone Code <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g. A3-B"
+                                placeholder="e.g. A3-B2"
                                 value={locCode}
                                 onChange={(e) => setLocCode(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                className="ss-input uppercase font-mono"
                             />
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
-                        <input
-                            type="checkbox"
-                            id="locActive"
-                            checked={locActive}
-                            onChange={(e) => setLocActive(e.target.checked)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        />
-                        <label htmlFor="locActive" className="text-sm font-medium text-slate-700">
-                            Location is Active and Ready for Storage
-                        </label>
+                    <div>
+                        <label className="ss-label">Zone Status</label>
+                        <select
+                            value={locActive ? "true" : "false"}
+                            onChange={(e) => setLocActive(e.target.value === "true")}
+                            className="ss-select"
+                        >
+                            <option value="true">Active Zone</option>
+                            <option value="false">Inactive / Blocked</option>
+                        </select>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={() => setLocationModalOpen(false)}
-                            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs disabled:opacity-50"
+                            className="ss-button ss-button-primary"
                         >
-                            {saving ? "Creating..." : "Create Location"}
+                            {saving ? "Creating..." : "Add Zone"}
                         </button>
                     </div>
                 </form>

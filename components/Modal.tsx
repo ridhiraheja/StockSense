@@ -49,25 +49,31 @@ export function Modal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" onClick={onClose} />
+        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+                onClick={onClose}
+                aria-hidden="true"
+            />
 
             <div className="flex min-h-full items-center justify-center p-4 text-center">
                 <div
-                    className={`w-full ${widthStyles[maxWidth]} transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl transition-all z-10 border border-slate-100`}
+                    className={`w-full ${widthStyles[maxWidth]} transform overflow-hidden rounded-xl bg-white text-left align-middle shadow-xl transition-all z-10 border border-slate-200`}
                 >
-                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+                            <h3 className="text-base font-bold text-slate-900 tracking-tight">{title}</h3>
                             {description && (
                                 <p className="text-xs text-slate-500 mt-0.5">{description}</p>
                             )}
                         </div>
                         <button
                             onClick={onClose}
-                            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                            aria-label="Close dialog"
                         >
-                            <X size={20} />
+                            <X size={18} />
                         </button>
                     </div>
                     <div className="p-6">{children}</div>

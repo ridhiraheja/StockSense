@@ -7,13 +7,16 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { Alert, Button, TableSkeleton } from "@/components/ui";
 import { Adjustment, AdjustmentItem, DocumentStatus } from "@/lib/types";
 import {
     SlidersHorizontal,
     ArrowLeft,
     CheckCircle2,
-    AlertCircle,
-    Check,
+    Boxes,
+    PackageCheck,
+    Calculator,
+    Info,
 } from "lucide-react";
 
 export default function AdjustmentDetailPage() {
@@ -85,8 +88,11 @@ export default function AdjustmentDetailPage() {
 
             if (rpcError) throw rpcError;
 
+            const netDiff = items.reduce((sum, it) => sum + (Number(it.difference) || 0), 0);
+            const diffFormatted = netDiff > 0 ? `+${netDiff}` : `${netDiff}`;
+
             setActionSuccess(
-                "Stock adjustment validated successfully! Differences applied to inventory and recorded in movement ledger."
+                `Stock adjustment validated successfully! Inventory balances corrected by net ${diffFormatted} units and recorded in stock movement ledger.`
             );
             loadAdjustment();
         } catch (err: unknown) {
@@ -119,10 +125,7 @@ export default function AdjustmentDetailPage() {
     if (loading) {
         return (
             <AppLayout title="Adjustment Details">
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading adjustment details...</p>
-                </div>
+                <TableSkeleton rows={4} columns={5} />
             </AppLayout>
         );
     }
@@ -133,7 +136,7 @@ export default function AdjustmentDetailPage() {
                 <EmptyState
                     icon={SlidersHorizontal}
                     title="Adjustment Not Found"
-                    description="The requested adjustment record does not exist."
+                    description="The requested adjustment record does not exist or has been removed."
                     actionLabel="Back to Adjustments"
                     actionHref="/adjustments"
                 />
@@ -141,165 +144,213 @@ export default function AdjustmentDetailPage() {
         );
     }
 
+    const netDifference = items.reduce((acc, curr) => acc + (Number(curr.difference) || 0), 0);
+
     return (
         <AppLayout
             title={`Adjustment ${adjustment.adjustment_number}`}
-            description={`Stock reconciliation created on ${new Date(adjustment.created_at).toLocaleString()}`}
+            description={`Stock reconciliation order • Created on ${new Date(adjustment.created_at).toLocaleString()}`}
             actions={
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <Link
                         href="/adjustments"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                        className="ss-button ss-button-secondary"
                     >
                         <ArrowLeft size={16} />
                         Back to Adjustments
                     </Link>
 
                     {adjustment.status !== "done" && adjustment.status !== "canceled" && (
-                        <button
+                        <Button
                             onClick={handleValidateAdjustment}
-                            disabled={validating}
-                            className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition shadow-sm disabled:opacity-50"
+                            isLoading={validating}
+                            variant="primary"
+                            icon={<PackageCheck size={16} />}
                         >
-                            <Check size={18} />
-                            {validating ? "Validating..." : "Validate & Apply Adjustment"}
-                        </button>
+                            Validate Adjustment
+                        </Button>
                     )}
                 </div>
             }
         >
-            {actionError && (
-                <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-3">
-                    <AlertCircle size={18} className="shrink-0" />
-                    <span>{actionError}</span>
-                </div>
-            )}
+            <div className="max-w-4xl mx-auto space-y-6">
+                {actionError && (
+                    <Alert type="error">
+                        {actionError}
+                    </Alert>
+                )}
 
-            {actionSuccess && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center gap-3">
-                    <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
-                    <span>{actionSuccess}</span>
-                </div>
-            )}
+                {actionSuccess && (
+                    <Alert type="success">
+                        {actionSuccess}
+                    </Alert>
+                )}
 
-            {/* Status Ribbon */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                    <div>
-                        <span className="text-xs font-bold uppercase text-slate-400">Current Status</span>
-                        <div className="mt-1">
-                            <StatusBadge status={adjustment.status} type="document" />
+                {/* Status & Facility Banner */}
+                <div className="ss-card p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                                <SlidersHorizontal size={20} />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-base font-bold text-slate-900 font-mono">
+                                        {adjustment.adjustment_number}
+                                    </h2>
+                                    <StatusBadge status={adjustment.status} type="document" />
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Audited Facility: <span className="font-semibold text-slate-800">{adjustment.warehouse?.name}</span> ({adjustment.warehouse?.code})
+                                </p>
+                            </div>
                         </div>
-                    </div>
 
-                    {adjustment.status !== "done" && adjustment.status !== "canceled" && (
-                        <div className="flex items-center gap-2">
-                            {adjustment.status === "draft" && (
+                        {adjustment.status !== "done" && adjustment.status !== "canceled" && (
+                            <div className="flex items-center gap-1.5 self-end sm:self-center">
+                                <span className="text-xs text-slate-400 font-medium mr-1">Status:</span>
+                                {adjustment.status !== "ready" && (
+                                    <button
+                                        onClick={() => handleUpdateStatus("ready")}
+                                        className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition"
+                                    >
+                                        Mark Ready
+                                    </button>
+                                )}
+                                {adjustment.status !== "waiting" && (
+                                    <button
+                                        onClick={() => handleUpdateStatus("waiting")}
+                                        className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-md transition"
+                                    >
+                                        Mark Waiting
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => handleUpdateStatus("ready")}
-                                    className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                                    onClick={() => handleUpdateStatus("canceled")}
+                                    className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-md transition"
                                 >
-                                    Mark as Ready
+                                    Cancel
                                 </button>
-                            )}
-                            <button
-                                onClick={() => handleUpdateStatus("canceled")}
-                                className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
-                            >
-                                Cancel Adjustment
-                            </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Line Items Table */}
+                <div className="ss-card overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                                Audited Inventory Items
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                                Discrepancies between expected system balance and physical shelf count.
+                            </p>
                         </div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-sm">
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Warehouse</span>
-                        <p className="font-bold text-slate-900 mt-0.5">
-                            {adjustment.warehouse?.name} ({adjustment.warehouse?.code})
-                        </p>
-                    </div>
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Reconciled Lines</span>
-                        <p className="font-bold text-slate-900 mt-0.5">
-                            {items.length} line item{items.length === 1 ? "" : "s"}
-                        </p>
-                    </div>
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Notes</span>
-                        <p className="font-medium text-slate-600 mt-0.5">
-                            {adjustment.notes || "—"}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Reconciliation Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900">Physical Stock Count Comparison</h3>
-                    <span className="text-xs font-semibold text-slate-500">
-                        {items.length} line item{items.length === 1 ? "" : "s"}
-                    </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4">Product</th>
-                                <th className="px-6 py-4">Zone</th>
-                                <th className="px-6 py-4 text-center">Physical Count</th>
-                                <th className="px-6 py-4 text-center">Difference</th>
-                                <th className="px-6 py-4">Reason</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {items.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50/60 transition">
-                                    <td className="px-6 py-4 font-semibold text-slate-900">
-                                        {item.product?.name || "Product"}
-                                        <span className="font-mono text-xs text-slate-400 block">
-                                            {item.product?.sku}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-700">
-                                        {item.location?.name} ({item.location?.code})
-                                    </td>
-                                    <td className="px-6 py-4 text-center font-bold text-slate-900 text-base">
-                                        {item.counted_quantity}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span
-                                            className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
-                                                item.difference > 0
-                                                    ? "bg-emerald-100 text-emerald-800"
-                                                    : item.difference < 0
-                                                    ? "bg-rose-100 text-rose-800"
-                                                    : "bg-slate-100 text-slate-700"
-                                            }`}
-                                        >
-                                            {item.difference > 0 ? `+${item.difference}` : item.difference}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 capitalize text-slate-700 font-medium">
-                                        {item.reason.replace(/_/g, " ")}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {adjustment.status === "done" && (
-                    <div className="p-4 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between text-xs text-emerald-800">
-                        <span className="flex items-center gap-2 font-semibold">
-                            <CheckCircle2 size={16} className="text-emerald-600" />
-                            Adjustment applied to physical database stock and recorded in ledger.
+                        <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                            {items.length} {items.length === 1 ? "Line" : "Lines"}
                         </span>
-                        <Link href="/moves" className="text-emerald-700 font-bold hover:underline">
-                            View Stock Ledger Movement →
-                        </Link>
+                    </div>
+
+                    <div className="ss-table-wrapper border-0 rounded-none shadow-none">
+                        <table className="ss-table">
+                            <thead>
+                                <tr>
+                                    <th>Product Name & SKU</th>
+                                    <th>Storage Zone</th>
+                                    <th>Shelf Count</th>
+                                    <th>Difference</th>
+                                    <th>Audit Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((it) => (
+                                    <tr key={it.id}>
+                                        <td>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                                    <Boxes size={14} />
+                                                </div>
+                                                <div>
+                                                    <span className="font-semibold text-slate-900 block leading-tight">
+                                                        {it.product?.name || "Product"}
+                                                    </span>
+                                                    <span className="font-mono text-[11px] text-slate-400">
+                                                        {it.product?.sku}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className="text-xs text-slate-700 font-medium">
+                                                {it.location?.name} ({it.location?.code})
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="font-mono font-bold text-slate-900 text-sm">
+                                                {it.counted_quantity}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span
+                                                className={`font-mono font-bold text-xs px-2 py-0.5 rounded-full ${
+                                                    it.difference > 0
+                                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                        : it.difference < 0
+                                                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                                        : "bg-slate-100 text-slate-600"
+                                                }`}
+                                            >
+                                                {it.difference > 0 ? `+${it.difference}` : it.difference} units
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="text-xs font-semibold text-slate-700 capitalize bg-slate-100 px-2 py-0.5 rounded">
+                                                {it.reason ? it.reason.replace("_", " ") : "Count correction"}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Total Summary Footer */}
+                    <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                        <div className="text-xs text-slate-500">
+                            {adjustment.notes && (
+                                <p>
+                                    <span className="font-semibold text-slate-700">Notes:</span> {adjustment.notes}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-600 font-bold uppercase tracking-wider">
+                                Net Correction:
+                            </span>
+                            <span
+                                className={`font-mono font-bold text-base bg-white px-3 py-1 rounded-md border ${
+                                    netDifference > 0
+                                        ? "text-emerald-700 border-emerald-200"
+                                        : netDifference < 0
+                                        ? "text-rose-700 border-rose-200"
+                                        : "text-slate-900 border-slate-200"
+                                }`}
+                            >
+                                {netDifference > 0 ? `+${netDifference}` : netDifference} units
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Complete Status Banner */}
+                {adjustment.status === "done" && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 text-xs">
+                        <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                        <div>
+                            <span className="font-bold block">Adjustment Complete & Posted</span>
+                            The stock balances in designated locations have been adjusted to reflect the verified physical counts.
+                        </div>
                     </div>
                 )}
             </div>

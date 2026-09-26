@@ -3,14 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
-import { Profile } from "@/lib/types";
+import { Alert, Button } from "@/components/ui";
 import {
     User,
     Mail,
     Shield,
     Calendar,
-    CheckCircle,
-    AlertCircle,
     Save,
 } from "lucide-react";
 
@@ -102,104 +100,100 @@ export default function ProfilePage() {
     return (
         <AppLayout
             title="User Profile"
-            description="Manage your account details and operational preferences."
+            description="Manage your account profile details, system role, and operator credentials."
         >
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-3xl mx-auto space-y-6">
                 {error && (
-                    <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-3">
-                        <AlertCircle size={18} className="shrink-0" />
-                        <span>{error}</span>
-                    </div>
+                    <Alert type="error">
+                        {error}
+                    </Alert>
                 )}
 
                 {successMessage && (
-                    <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center gap-3">
-                        <CheckCircle size={18} className="shrink-0 text-emerald-600" />
-                        <span>{successMessage}</span>
-                    </div>
+                    <Alert type="success">
+                        {successMessage}
+                    </Alert>
                 )}
 
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                    {/* Header Banner */}
-                    <div className="bg-gradient-to-r from-slate-900 to-blue-900 p-8 text-white">
-                        <div className="flex items-center gap-5">
-                            <div className="w-20 h-20 rounded-2xl bg-blue-600/30 border-2 border-blue-400/40 text-blue-300 flex items-center justify-center font-bold text-3xl uppercase backdrop-blur-xs">
+                {/* Profile Card Header */}
+                <div className="ss-card overflow-hidden">
+                    <div className="bg-slate-900 p-6 text-white border-b border-slate-800">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-2xl uppercase shrink-0">
                                 {(fullName || email || "U").charAt(0)}
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-bold">{fullName || "StockSense User"}</h2>
-                                <p className="text-sm text-slate-300 flex items-center gap-1.5 mt-1">
-                                    <Mail size={15} />
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-xl font-bold tracking-tight truncate">
+                                    {fullName || "StockSense Operator"}
+                                </h2>
+                                <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5 truncate">
+                                    <Mail size={13} />
                                     {email}
                                 </p>
-                                <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-200 border border-blue-400/30">
-                                    <Shield size={12} />
+                                <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                                    <Shield size={11} />
                                     {role}
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Profile Form */}
-                    <form onSubmit={handleSaveProfile} className="p-8 space-y-6">
-                        <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Full Name
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="Enter your full name"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Registered Email
-                            </label>
-                            <input
-                                type="email"
-                                value={email}
-                                disabled
-                                className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
-                            />
-                            <p className="text-xs text-slate-400 mt-1">
-                                Email is managed by Supabase Authentication.
-                            </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Operational Role
-                            </label>
-                            <input
-                                type="text"
-                                value={role}
-                                onChange={(e) => setRole(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                            />
-                        </div>
-
-                        {createdAt && (
-                            <div className="pt-2">
-                                <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                                    <Calendar size={14} />
-                                    Member since {new Date(createdAt).toLocaleDateString()}
-                                </p>
+                    <form onSubmit={handleSaveProfile} className="p-6 space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="ss-label">Full Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Sarah Connor"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    className="ss-input"
+                                />
                             </div>
-                        )}
+
+                            <div>
+                                <label className="ss-label">Email Address</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    disabled
+                                    className="ss-input cursor-not-allowed bg-slate-50 text-slate-500"
+                                />
+                                <span className="ss-helper">Managed by authentication provider.</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label className="ss-label">Operational Role</label>
+                                <input
+                                    type="text"
+                                    value={role}
+                                    onChange={(e) => setRole(e.target.value)}
+                                    className="ss-input"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="ss-label">Account Member Since</label>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 h-[38px]">
+                                    <Calendar size={14} className="text-slate-400" />
+                                    <span>
+                                        {createdAt ? new Date(createdAt).toLocaleDateString() : "—"}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
                         <div className="flex justify-end pt-4 border-t border-slate-100">
-                            <button
+                            <Button
                                 type="submit"
-                                disabled={saving}
-                                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm disabled:opacity-50"
+                                variant="primary"
+                                isLoading={saving}
+                                icon={<Save size={15} />}
                             >
-                                <Save size={16} />
-                                {saving ? "Saving Changes..." : "Save Profile"}
-                            </button>
+                                Save Profile
+                            </Button>
                         </div>
                     </form>
                 </div>

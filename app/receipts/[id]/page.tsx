@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { Alert, Button, TableSkeleton } from "@/components/ui";
 import { Receipt, ReceiptItem, DocumentStatus } from "@/lib/types";
 import {
     Truck,
@@ -14,11 +15,11 @@ import {
     CheckCircle2,
     Clock,
     XCircle,
-    AlertCircle,
-    Calendar,
-    Warehouse as WarehouseIcon,
+    Boxes,
+    Building2,
+    ShieldCheck,
     PackageCheck,
-    Check,
+    FileCheck,
 } from "lucide-react";
 
 export default function ReceiptDetailPage() {
@@ -91,8 +92,9 @@ export default function ReceiptDetailPage() {
 
             if (rpcError) throw rpcError;
 
+            const totalQty = items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
             setActionSuccess(
-                "Receipt validated successfully! Stock levels have been increased and recorded in the movement history."
+                `Receipt validated successfully! Stock increased by ${totalQty} units across designated warehouse locations and recorded in stock movement ledger.`
             );
             loadReceipt();
         } catch (err: unknown) {
@@ -114,7 +116,7 @@ export default function ReceiptDetailPage() {
                 .eq("id", receipt.id);
 
             if (error) throw error;
-            setActionSuccess(`Receipt marked as ${newStatus}.`);
+            setActionSuccess(`Receipt status updated to ${newStatus}.`);
             loadReceipt();
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Failed to update status.";
@@ -125,10 +127,7 @@ export default function ReceiptDetailPage() {
     if (loading) {
         return (
             <AppLayout title="Receipt Order">
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading receipt details...</p>
-                </div>
+                <TableSkeleton rows={4} columns={5} />
             </AppLayout>
         );
     }
@@ -139,7 +138,7 @@ export default function ReceiptDetailPage() {
                 <EmptyState
                     icon={Truck}
                     title="Receipt Not Found"
-                    description="The requested receipt record does not exist."
+                    description="The requested receipt record does not exist or has been removed."
                     actionLabel="Back to Receipts"
                     actionHref="/receipts"
                 />
@@ -152,162 +151,188 @@ export default function ReceiptDetailPage() {
     return (
         <AppLayout
             title={`Receipt ${receipt.receipt_number}`}
-            description={`Incoming delivery created on ${new Date(receipt.created_at).toLocaleString()}`}
+            description={`Supplier intake order • Created on ${new Date(receipt.created_at).toLocaleString()}`}
             actions={
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <Link
                         href="/receipts"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                        className="ss-button ss-button-secondary"
                     >
                         <ArrowLeft size={16} />
                         Back to Receipts
                     </Link>
 
                     {receipt.status !== "done" && receipt.status !== "canceled" && (
-                        <button
+                        <Button
                             onClick={handleValidateReceipt}
-                            disabled={validating}
-                            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition shadow-sm disabled:opacity-50"
+                            isLoading={validating}
+                            variant="primary"
+                            icon={<PackageCheck size={16} />}
                         >
-                            <PackageCheck size={18} />
-                            {validating ? "Validating..." : "Validate & Receive Stock"}
-                        </button>
+                            Validate Receipt
+                        </Button>
                     )}
                 </div>
             }
         >
-            {actionError && (
-                <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-3">
-                    <AlertCircle size={18} className="shrink-0" />
-                    <span>{actionError}</span>
-                </div>
-            )}
+            <div className="max-w-4xl mx-auto space-y-6">
+                {actionError && (
+                    <Alert type="error">
+                        {actionError}
+                    </Alert>
+                )}
 
-            {actionSuccess && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center gap-3">
-                    <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
-                    <span>{actionSuccess}</span>
-                </div>
-            )}
+                {actionSuccess && (
+                    <Alert type="success">
+                        {actionSuccess}
+                    </Alert>
+                )}
 
-            {/* Status Steps Ribbon */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                    <div>
-                        <span className="text-xs font-bold uppercase text-slate-400">Current Status</span>
-                        <div className="mt-1">
-                            <StatusBadge status={receipt.status} type="document" />
+                {/* Status & Validation Progression Banner */}
+                <div className="ss-card p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                                <Truck size={20} />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-base font-bold text-slate-900 font-mono">
+                                        {receipt.receipt_number}
+                                    </h2>
+                                    <StatusBadge status={receipt.status} type="document" />
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Supplier: <span className="font-semibold text-slate-800">{receipt.supplier_name || "Direct Intake"}</span> • Facility:{" "}
+                                    <span className="font-semibold text-slate-800">{receipt.warehouse?.name}</span>
+                                </p>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Status Action Buttons */}
-                    {receipt.status !== "done" && receipt.status !== "canceled" && (
-                        <div className="flex items-center gap-2">
-                            {receipt.status === "draft" && (
+                        {/* Status transition controls */}
+                        {receipt.status !== "done" && receipt.status !== "canceled" && (
+                            <div className="flex items-center gap-1.5 self-end sm:self-center">
+                                <span className="text-xs text-slate-400 font-medium mr-1">Change Status:</span>
+                                {receipt.status !== "ready" && (
+                                    <button
+                                        onClick={() => handleUpdateStatus("ready")}
+                                        className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition"
+                                    >
+                                        Mark Ready
+                                    </button>
+                                )}
+                                {receipt.status !== "waiting" && (
+                                    <button
+                                        onClick={() => handleUpdateStatus("waiting")}
+                                        className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-md transition"
+                                    >
+                                        Mark Waiting
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => handleUpdateStatus("waiting")}
-                                    className="px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition"
+                                    onClick={() => handleUpdateStatus("canceled")}
+                                    className="px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-md transition"
                                 >
-                                    Mark as Waiting
+                                    Cancel
                                 </button>
-                            )}
-                            {receipt.status === "waiting" && (
-                                <button
-                                    onClick={() => handleUpdateStatus("ready")}
-                                    className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
-                                >
-                                    Mark as Ready
-                                </button>
-                            )}
-                            <button
-                                onClick={() => handleUpdateStatus("canceled")}
-                                className="px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
-                            >
-                                Cancel Receipt
-                            </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Line Items Table */}
+                <div className="ss-card overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                                Received Line Items
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                                Goods verified for storage deposit.
+                            </p>
                         </div>
-                    )}
-                </div>
-
-                {/* Metadata Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-4 text-sm">
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Supplier</span>
-                        <p className="font-bold text-slate-900 mt-0.5">
-                            {receipt.supplier_name || "Direct Vendor"}
-                        </p>
-                    </div>
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Warehouse</span>
-                        <p className="font-bold text-slate-900 mt-0.5">
-                            {receipt.warehouse?.name} ({receipt.warehouse?.code})
-                        </p>
-                    </div>
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Total Items</span>
-                        <p className="font-bold text-slate-900 mt-0.5">
-                            {items.length} line{items.length === 1 ? "" : "s"} ({totalQuantity} units)
-                        </p>
-                    </div>
-                    <div>
-                        <span className="text-xs font-semibold text-slate-400 uppercase">Notes / Ref</span>
-                        <p className="font-medium text-slate-600 mt-0.5">
-                            {receipt.notes || "—"}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Received Line Items */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900">Received Products</h3>
-                    <span className="text-xs font-semibold text-slate-500">
-                        {items.length} product line{items.length === 1 ? "" : "s"}
-                    </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4">Product</th>
-                                <th className="px-6 py-4">SKU</th>
-                                <th className="px-6 py-4">Storage Zone</th>
-                                <th className="px-6 py-4 text-right">Quantity</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {items.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50/60 transition">
-                                    <td className="px-6 py-4 font-semibold text-slate-900">
-                                        {item.product?.name || "Product"}
-                                    </td>
-                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">
-                                        {item.product?.sku || "—"}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-700">
-                                        {item.location?.name} ({item.location?.code})
-                                    </td>
-                                    <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                        +{item.quantity} {item.product?.unit_of_measure || "Units"}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Validation Banner if Done */}
-                {receipt.status === "done" && (
-                    <div className="p-4 bg-emerald-50 border-t border-emerald-100 flex items-center justify-between text-xs text-emerald-800">
-                        <span className="flex items-center gap-2 font-semibold">
-                            <CheckCircle2 size={16} className="text-emerald-600" />
-                            Inventory received and updated in database stock ledger.
+                        <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
+                            {items.length} {items.length === 1 ? "Item" : "Items"}
                         </span>
-                        <Link href="/moves" className="text-emerald-700 font-bold hover:underline">
-                            View Stock Ledger Movement →
-                        </Link>
+                    </div>
+
+                    <div className="ss-table-wrapper border-0 rounded-none shadow-none">
+                        <table className="ss-table">
+                            <thead>
+                                <tr>
+                                    <th>Product Name & SKU</th>
+                                    <th>Target Storage Zone</th>
+                                    <th>Quantity</th>
+                                    <th>UOM</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((it) => (
+                                    <tr key={it.id}>
+                                        <td>
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                                    <Boxes size={14} />
+                                                </div>
+                                                <div>
+                                                    <span className="font-semibold text-slate-900 block leading-tight">
+                                                        {it.product?.name || "Product"}
+                                                    </span>
+                                                    <span className="font-mono text-[11px] text-slate-400">
+                                                        {it.product?.sku}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className="font-medium text-slate-700 text-xs">
+                                                {it.location?.name || "Zone"} ({it.location?.code || "—"})
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="font-mono font-bold text-slate-900 text-sm">
+                                                +{it.quantity}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="text-slate-500 text-xs">
+                                                {it.product?.unit_of_measure || "Units"}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Total Summary Footer */}
+                    <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                        <div className="text-xs text-slate-500">
+                            {receipt.notes && (
+                                <p>
+                                    <span className="font-semibold text-slate-700">Notes:</span> {receipt.notes}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-600 font-bold uppercase tracking-wider">
+                                Total Received:
+                            </span>
+                            <span className="font-mono font-bold text-slate-900 text-base bg-white px-3 py-1 rounded-md border border-slate-200">
+                                +{totalQuantity} units
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Validation Info Box if already validated */}
+                {receipt.status === "done" && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 text-xs">
+                        <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                        <div>
+                            <span className="font-bold block">Receipt Complete & Validated</span>
+                            This order has been posted. Inventory quantities have been credited to the specified storage locations.
+                        </div>
                     </div>
                 )}
             </div>

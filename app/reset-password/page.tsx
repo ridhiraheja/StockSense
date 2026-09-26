@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { Package } from "lucide-react";
+import { Alert, Button } from "@/components/ui";
 
 export default function ResetPasswordPage() {
     const router = useRouter();
@@ -42,7 +44,7 @@ export default function ResetPasswordPage() {
             return;
         }
 
-        setMessage("Password updated successfully!");
+        setMessage("Password updated successfully! Redirecting to sign in...");
 
         setTimeout(() => {
             router.push("/login");
@@ -50,79 +52,77 @@ export default function ResetPasswordPage() {
     };
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
-            <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+        <main className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                {/* Brand Header */}
+                <div className="flex flex-col items-center text-center mb-8">
+                    <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/30 mb-3">
+                        <Package size={26} />
+                    </div>
+                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                        StockSense
+                    </h1>
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mt-0.5">
+                        Inventory Management System
+                    </p>
+                </div>
 
-                <h1 className="text-3xl font-bold text-gray-900 text-center">
-                    StockSense
-                </h1>
+                <div className="mb-6">
+                    <h2 className="text-lg font-bold text-slate-900">Set New Password</h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                        Enter your new secure password below.
+                    </p>
+                </div>
 
-                <p className="text-gray-600 text-center mt-2 mb-8">
-                    Inventory Management System
-                </p>
+                {error && (
+                    <Alert type="error" className="mb-5">
+                        {error}
+                    </Alert>
+                )}
 
-                <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                    Reset Password
-                </h2>
+                {message && (
+                    <Alert type="success" className="mb-5">
+                        {message}
+                    </Alert>
+                )}
 
-                <p className="text-gray-600 mb-6">
-                    Enter your new password below.
-                </p>
-
-                <form onSubmit={handleResetPassword} className="space-y-5">
-
+                <form onSubmit={handleResetPassword} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            New Password
-                        </label>
-
+                        <label className="ss-label">New Password (Min. 6 chars)</label>
                         <input
                             type="password"
-                            placeholder="Enter new password"
+                            placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            className="w-full border border-gray-300 rounded-lg p-3 text-black bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="ss-input"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Confirm Password
-                        </label>
-
+                        <label className="ss-label">Confirm New Password</label>
                         <input
                             type="password"
-                            placeholder="Confirm new password"
+                            placeholder="••••••••"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
-                            className="w-full border border-gray-300 rounded-lg p-3 text-black bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="ss-input"
                         />
                     </div>
 
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    {message && (
-                        <div className="bg-green-50 border border-green-200 text-green-600 rounded-lg p-3 text-sm">
-                            {message}
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                        {loading ? "Updating..." : "Update Password"}
-                    </button>
-
+                    <div className="pt-2">
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            isLoading={loading}
+                            fullWidth
+                            size="lg"
+                        >
+                            Update Password
+                        </Button>
+                    </div>
                 </form>
-
             </div>
         </main>
     );

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Modal } from "@/components/Modal";
 import { EmptyState } from "@/components/EmptyState";
+import { Alert, TableSkeleton } from "@/components/ui";
 import { Warehouse, Location } from "@/lib/types";
 import {
     Plus,
@@ -14,14 +15,15 @@ import {
     Search,
     Edit,
     Trash2,
-    CheckCircle,
-    AlertCircle,
     ExternalLink,
     Boxes,
+    Building2,
 } from "lucide-react";
 
 interface WarehouseWithLocations extends Warehouse {
     locations?: Location[];
+    total_locations?: number;
+    total_stock_count?: number;
 }
 
 export default function WarehousesPage() {
@@ -65,10 +67,25 @@ export default function WarehousesPage() {
 
             if (locError) throw locError;
 
-            const combined: WarehouseWithLocations[] = (whData || []).map((wh) => ({
-                ...wh,
-                locations: (locData || []).filter((l) => l.warehouse_id === wh.id),
-            }));
+            // Fetch stock counts across locations
+            const { data: stockData } = await supabase
+                .from("stock_levels")
+                .select("location_id, quantity");
+
+            const combined: WarehouseWithLocations[] = (whData || []).map((wh) => {
+                const whLocs = (locData || []).filter((l) => l.warehouse_id === wh.id);
+                const locIds = new Set(whLocs.map((l) => l.id));
+                const totalUnits = (stockData || [])
+                    .filter((s) => locIds.has(s.location_id))
+                    .reduce((sum, curr) => sum + (Number(curr.quantity) || 0), 0);
+
+                return {
+                    ...wh,
+                    locations: whLocs,
+                    total_locations: whLocs.length,
+                    total_stock_count: totalUnits,
+                };
+            });
 
             setWarehouses(combined);
         } catch (err: unknown) {
@@ -152,17 +169,17 @@ export default function WarehousesPage() {
 
                 if (insertError) throw insertError;
 
-                // Automatically create a default location for convenience
+                // Auto-create default general storage zone for new warehouse
                 if (newWh) {
                     await supabase.from("locations").insert({
                         warehouse_id: newWh.id,
-                        name: "Main Storage",
-                        code: `${newWh.code}-MAIN`,
+                        name: "General Storage",
+                        code: `${newWh.code}-GEN`,
                         is_active: true,
                     });
                 }
 
-                setSuccessMessage("Warehouse & default location created successfully.");
+                setSuccessMessage("Warehouse created with default storage zone.");
             }
 
             setWarehouseModalOpen(false);
@@ -180,7 +197,7 @@ export default function WarehousesPage() {
     const handleSaveLocation = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!locName.trim() || !locCode.trim()) {
-            setError("Location Name and Code are required.");
+            setError("Zone Name and Code are required.");
             return;
         }
 
@@ -197,13 +214,13 @@ export default function WarehousesPage() {
 
             if (insertError) throw insertError;
 
-            setSuccessMessage("Location created successfully.");
+            setSuccessMessage("Storage zone added to warehouse.");
             setLocationModalOpen(false);
             loadData();
             setTimeout(() => setSuccessMessage(""), 4000);
         } catch (err: unknown) {
-            console.error("Error saving location:", err);
-            const message = err instanceof Error ? err.message : "Unable to create location.";
+            console.error("Error creating location:", err);
+            const message = err instanceof Error ? err.message : "Unable to add storage zone.";
             setError(message);
         } finally {
             setSaving(false);
@@ -211,7 +228,7 @@ export default function WarehousesPage() {
     };
 
     const handleDeleteWarehouse = async (wh: WarehouseWithLocations) => {
-        if (!confirm(`Are you sure you want to delete warehouse "${wh.name}"? This may affect associated stock.`)) {
+        if (!confirm(`Are you sure you want to delete warehouse "${wh.name}"?`)) {
             return;
         }
 
@@ -223,406 +240,345 @@ export default function WarehousesPage() {
 
             if (delError) throw delError;
 
-            setSuccessMessage(`Warehouse "${wh.name}" deleted.`);
+            setSuccessMessage(`Warehouse "${wh.name}" was deleted.`);
             loadData();
             setTimeout(() => setSuccessMessage(""), 4000);
         } catch (err: unknown) {
             console.error("Error deleting warehouse:", err);
-            const message = err instanceof Error ? err.message : "Unable to delete warehouse.";
+            const message = err instanceof Error ? err.message : "Unable to delete warehouse (it may contain active inventory or history).";
             alert(message);
         }
     };
 
-    const handleDeleteLocation = async (loc: Location) => {
-        if (!confirm(`Are you sure you want to delete location "${loc.name}" (${loc.code})?`)) {
-            return;
-        }
-
-        try {
-            const { error: delError } = await supabase
-                .from("locations")
-                .delete()
-                .eq("id", loc.id);
-
-            if (delError) throw delError;
-
-            setSuccessMessage(`Location "${loc.name}" deleted.`);
-            loadData();
-            setTimeout(() => setSuccessMessage(""), 4000);
-        } catch (err: unknown) {
-            console.error("Error deleting location:", err);
-            const message = err instanceof Error ? err.message : "Unable to delete location.";
-            alert(message);
-        }
-    };
-
-    const filteredWarehouses = warehouses.filter((wh) =>
-        wh.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        wh.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (wh.address && wh.address.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredWarehouses = warehouses.filter((w) => {
+        return (
+            w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            w.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (w.address && w.address.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+    });
 
     return (
         <AppLayout
-            title="Warehouses & Locations"
-            description="Manage your storage facilities, distribution hubs, and internal racks/zones."
+            title="Warehouses & Facilities"
+            description="Manage physical storage locations, aisles, bin zones, and distribution nodes."
             actions={
                 <button
                     onClick={openCreateWarehouseModal}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
+                    className="ss-button ss-button-primary"
                 >
-                    <Plus size={18} />
+                    <Plus size={16} />
                     Add Warehouse
                 </button>
             }
         >
-            {/* Feedback notifications */}
-            {successMessage && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-3 text-sm">
-                    <CheckCircle className="text-emerald-600 shrink-0" size={18} />
-                    <span>{successMessage}</span>
-                </div>
+            {error && (
+                <Alert type="error" className="mb-6">
+                    {error}
+                </Alert>
             )}
 
-            {/* Search bar */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center">
-                <div className="relative w-full sm:w-80">
+            {successMessage && (
+                <Alert type="success" className="mb-6">
+                    {successMessage}
+                </Alert>
+            )}
+
+            {/* Filter Bar */}
+            <div className="ss-card p-4 mb-6 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                <div className="relative w-full sm:w-72">
                     <Search
-                        size={18}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                     />
                     <input
                         type="text"
                         placeholder="Search warehouses by name, code, address..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                        className="ss-input !pl-9"
                     />
                 </div>
-                <div className="text-sm font-medium text-slate-500">
-                    Total Facilities: <span className="text-slate-900 font-bold">{filteredWarehouses.length}</span>
-                </div>
+                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
+                    {filteredWarehouses.length} {filteredWarehouses.length === 1 ? "Warehouse" : "Warehouses"} registered
+                </span>
             </div>
 
-            {/* Content List */}
+            {/* Warehouse Cards Grid */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading warehouses & locations...</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="ss-card p-5 space-y-3">
+                            <div className="flex justify-between items-center">
+                                <div className="skeleton-pulse h-5 w-32 rounded" />
+                                <div className="skeleton-pulse h-4 w-12 rounded-full" />
+                            </div>
+                            <div className="skeleton-pulse h-3 w-48 rounded" />
+                            <div className="skeleton-pulse h-16 w-full rounded" />
+                        </div>
+                    ))}
                 </div>
             ) : filteredWarehouses.length === 0 ? (
                 <EmptyState
-                    icon={WarehouseIcon}
-                    title={searchQuery ? "No warehouses match your search" : "No warehouses yet"}
+                    icon={Building2}
+                    title="No warehouses found"
                     description={
                         searchQuery
-                            ? "Try refining your search query."
-                            : "Create your first warehouse or storage location to begin tracking stock movements."
+                            ? "No facilities match your search query."
+                            : "Create your first warehouse facility to start organizing stock zones."
                     }
-                    actionLabel={searchQuery ? undefined : "Add Warehouse"}
-                    onAction={searchQuery ? undefined : openCreateWarehouseModal}
+                    actionLabel="Add Warehouse"
+                    onAction={openCreateWarehouseModal}
                 />
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredWarehouses.map((wh) => (
                         <div
                             key={wh.id}
-                            className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col justify-between"
+                            className="ss-card p-5 flex flex-col justify-between group"
                         >
-                            {/* Warehouse Header */}
-                            <div className="p-6 border-b border-slate-100">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex items-center gap-3.5">
-                                        <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                                            <WarehouseIcon size={22} />
+                            <div>
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                            <WarehouseIcon size={18} />
                                         </div>
                                         <div>
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="font-bold text-slate-900 text-lg">
-                                                    {wh.name}
-                                                </h3>
-                                                <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-700">
-                                                    {wh.code}
-                                                </span>
-                                            </div>
-                                            {wh.address ? (
-                                                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                                                    <MapPin size={13} className="text-slate-400" />
-                                                    {wh.address}
-                                                </p>
-                                            ) : (
-                                                <p className="text-xs text-slate-400 mt-0.5">No address specified</p>
-                                            )}
+                                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                                                {wh.name}
+                                            </h3>
+                                            <span className="text-[11px] font-mono font-semibold text-slate-400">
+                                                {wh.code}
+                                            </span>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-1">
-                                        <Link
-                                            href={`/warehouses/${wh.id}`}
-                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                            title="View Details"
-                                        >
-                                            <ExternalLink size={16} />
-                                        </Link>
-                                        <button
-                                            onClick={() => openEditWarehouseModal(wh)}
-                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                            title="Edit Warehouse"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteWarehouse(wh)}
-                                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                                            title="Delete Warehouse"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Locations Section */}
-                            <div className="p-6 bg-slate-50/50 flex-1">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                                        Locations / Zones ({wh.locations?.length || 0})
-                                    </span>
-                                    <button
-                                        onClick={() => openCreateLocationModal(wh.id)}
-                                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
-                                    >
-                                        <Plus size={14} />
-                                        Add Location
-                                    </button>
-                                </div>
-
-                                {wh.locations && wh.locations.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {wh.locations.map((loc) => (
-                                            <div
-                                                key={loc.id}
-                                                className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200 text-xs text-slate-700"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <MapPin size={14} className="text-blue-500" />
-                                                    <span className="font-semibold text-slate-900">{loc.name}</span>
-                                                    <span className="font-mono text-slate-400">({loc.code})</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span
-                                                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                                            loc.is_active
-                                                                ? "bg-emerald-100 text-emerald-800"
-                                                                : "bg-slate-100 text-slate-500"
-                                                        }`}
-                                                    >
-                                                        {loc.is_active ? "Active" : "Inactive"}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => handleDeleteLocation(loc)}
-                                                        className="text-slate-400 hover:text-rose-600 p-1"
-                                                        title="Delete Location"
-                                                    >
-                                                        <Trash2 size={13} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-4 text-xs text-slate-400">
-                                        No specific locations defined yet.
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Warehouse Footer */}
-                            <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                                <span
-                                    className={`inline-flex items-center gap-1 font-semibold ${
-                                        wh.is_active ? "text-emerald-700" : "text-slate-500"
-                                    }`}
-                                >
                                     <span
-                                        className={`w-2 h-2 rounded-full ${
-                                            wh.is_active ? "bg-emerald-500" : "bg-slate-400"
+                                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                            wh.is_active
+                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                : "bg-slate-100 text-slate-600 border border-slate-200"
                                         }`}
-                                    />
-                                    {wh.is_active ? "Operational" : "Inactive"}
-                                </span>
+                                    >
+                                        {wh.is_active ? "Active" : "Inactive"}
+                                    </span>
+                                </div>
+
+                                {wh.address && (
+                                    <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-2">
+                                        <MapPin size={13} className="text-slate-400 shrink-0" />
+                                        <span className="truncate">{wh.address}</span>
+                                    </p>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2 mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Storage Zones</span>
+                                        <span className="font-bold text-slate-800 text-sm">
+                                            {wh.total_locations || 0}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block text-[11px]">Units Stored</span>
+                                        <span className="font-bold text-slate-800 font-mono text-sm">
+                                            {wh.total_stock_count || 0}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
                                 <Link
                                     href={`/warehouses/${wh.id}`}
-                                    className="text-blue-600 font-semibold hover:underline flex items-center gap-1"
+                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
                                 >
-                                    View Full Details →
+                                    Manage Zones →
                                 </Link>
+
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => openCreateLocationModal(wh.id)}
+                                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                        title="Add Location Zone"
+                                    >
+                                        <Plus size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => openEditWarehouseModal(wh)}
+                                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                        title="Edit Facility"
+                                    >
+                                        <Edit size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteWarehouse(wh)}
+                                        className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition"
+                                        title="Delete Facility"
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Warehouse Create/Edit Modal */}
+            {/* WAREHOUSE MODAL */}
             <Modal
                 isOpen={warehouseModalOpen}
                 onClose={() => setWarehouseModalOpen(false)}
-                title={editingWarehouse ? "Edit Warehouse" : "Add New Warehouse"}
-                description="Storage facilities act as parent containers for inventory locations."
+                title={editingWarehouse ? "Edit Warehouse" : "Add Warehouse Facility"}
+                description="Distribution center code, facility name, and address."
             >
                 <form onSubmit={handleSaveWarehouse} className="space-y-4">
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
-                            <AlertCircle size={16} className="shrink-0" />
-                            <span>{error}</span>
-                        </div>
+                        <Alert type="error" className="mb-2">
+                            {error}
+                        </Alert>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Warehouse Name <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                Facility Name <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g. Central Distribution Hub"
+                                placeholder="Main Warehouse, Central Hub"
                                 value={whName}
                                 onChange={(e) => setWhName(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="ss-input"
                             />
                         </div>
+
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Code / ID <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                Code <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g. WH-CENTRAL"
+                                placeholder="WH-MAIN, HUB-NY"
                                 value={whCode}
                                 onChange={(e) => setWhCode(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                className="ss-input uppercase font-mono"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                            Street Address / Location
-                        </label>
+                        <label className="ss-label">Street / Facility Address</label>
                         <input
                             type="text"
-                            placeholder="e.g. 100 Industrial Parkway, Sector 4"
+                            placeholder="123 Logistics Parkway, Suite 400"
                             value={whAddress}
                             onChange={(e) => setWhAddress(e.target.value)}
-                            className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="ss-input"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
-                        <input
-                            type="checkbox"
-                            id="whActive"
-                            checked={whActive}
-                            onChange={(e) => setWhActive(e.target.checked)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        />
-                        <label htmlFor="whActive" className="text-sm font-medium text-slate-700">
-                            Warehouse is Active and Available for Shipments
-                        </label>
+                    <div>
+                        <label className="ss-label">Status</label>
+                        <select
+                            value={whActive ? "true" : "false"}
+                            onChange={(e) => setWhActive(e.target.value === "true")}
+                            className="ss-select"
+                        >
+                            <option value="true">Active Facility</option>
+                            <option value="false">Inactive / Under Maintenance</option>
+                        </select>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={() => setWarehouseModalOpen(false)}
-                            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs disabled:opacity-50"
+                            className="ss-button ss-button-primary"
                         >
-                            {saving ? "Saving..." : editingWarehouse ? "Update Warehouse" : "Create Warehouse"}
+                            {saving ? "Saving..." : "Save Warehouse"}
                         </button>
                     </div>
                 </form>
             </Modal>
 
-            {/* Location Create Modal */}
+            {/* LOCATION / ZONE MODAL */}
             <Modal
                 isOpen={locationModalOpen}
                 onClose={() => setLocationModalOpen(false)}
-                title="Add Location Zone"
-                description="Specify a rack, aisle, bin, or zone inside this warehouse."
+                title="Add Storage Zone / Bin"
+                description="Create a sub-location zone (aisle, shelf, bin, bay) within this warehouse."
             >
                 <form onSubmit={handleSaveLocation} className="space-y-4">
                     {error && (
-                        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
-                            <AlertCircle size={16} className="shrink-0" />
-                            <span>{error}</span>
-                        </div>
+                        <Alert type="error" className="mb-2">
+                            {error}
+                        </Alert>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Location Name <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                Zone Name <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g. Rack A-1, Production Floor"
+                                placeholder="Aisle 1 - Bin A, Cold Room"
                                 value={locName}
                                 onChange={(e) => setLocName(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="ss-input"
                             />
                         </div>
+
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Location Code <span className="text-rose-500">*</span>
+                            <label className="ss-label">
+                                Zone Code <span className="required">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g. LOC-A1"
+                                placeholder="A1-BA, CR-01"
                                 value={locCode}
                                 onChange={(e) => setLocCode(e.target.value)}
                                 required
-                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                className="ss-input uppercase font-mono"
                             />
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2">
-                        <input
-                            type="checkbox"
-                            id="locActive"
-                            checked={locActive}
-                            onChange={(e) => setLocActive(e.target.checked)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                        />
-                        <label htmlFor="locActive" className="text-sm font-medium text-slate-700">
-                            Location is Active
-                        </label>
+                    <div>
+                        <label className="ss-label">Zone Status</label>
+                        <select
+                            value={locActive ? "true" : "false"}
+                            onChange={(e) => setLocActive(e.target.value === "true")}
+                            className="ss-select"
+                        >
+                            <option value="true">Active Zone</option>
+                            <option value="false">Inactive / Blocked</option>
+                        </select>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={() => setLocationModalOpen(false)}
-                            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs disabled:opacity-50"
+                            className="ss-button ss-button-primary"
                         >
-                            {saving ? "Creating..." : "Add Location"}
+                            {saving ? "Saving..." : "Save Zone"}
                         </button>
                     </div>
                 </form>

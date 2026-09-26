@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
+import { Alert, Button } from "@/components/ui";
 import { Product, Warehouse, Location, StockLevel, AdjustmentReason } from "@/lib/types";
 import {
     ArrowLeft,
     Plus,
     Trash2,
     SlidersHorizontal,
-    CheckCircle,
-    AlertCircle,
     Boxes,
+    Building2,
     Calculator,
 } from "lucide-react";
 
@@ -158,15 +158,14 @@ export default function NewAdjustmentPage() {
         );
     };
 
-    const updateItemCounted = (id: string, counted: number) => {
+    const updateCountedQuantity = (id: string, count: number) => {
         setItems((prev) =>
             prev.map((i) => {
                 if (i.id === id) {
-                    const diff = counted - i.system_quantity;
                     return {
                         ...i,
-                        counted_quantity: counted,
-                        difference: diff,
+                        counted_quantity: count,
+                        difference: count - i.system_quantity,
                     };
                 }
                 return i;
@@ -174,18 +173,19 @@ export default function NewAdjustmentPage() {
         );
     };
 
-    const updateItemReason = (id: string, reason: AdjustmentReason) => {
+    const updateReason = (id: string, r: AdjustmentReason) => {
         setItems((prev) =>
-            prev.map((i) => (i.id === id ? { ...i, reason } : i))
+            prev.map((i) => (i.id === id ? { ...i, reason: r } : i))
         );
     };
 
     const addItem = () => {
         const matchingLocs = locations.filter((l) => l.warehouse_id === warehouseId);
-        const defaultLoc = matchingLocs[0]?.id || "";
-        const defaultProd = products[0]?.id || "";
+        const defLoc = matchingLocs[0]?.id || "";
+        const defProd = products[0]?.id || "";
+
         const existing = stockLevels.find(
-            (s) => s.product_id === defaultProd && s.location_id === defaultLoc
+            (s) => s.product_id === defProd && s.location_id === defLoc
         );
         const sysQty = existing ? Number(existing.quantity) : 0;
 
@@ -193,8 +193,8 @@ export default function NewAdjustmentPage() {
             ...prev,
             {
                 id: Math.random().toString(),
-                product_id: defaultProd,
-                location_id: defaultLoc,
+                product_id: defProd,
+                location_id: defLoc,
                 system_quantity: sysQty,
                 counted_quantity: sysQty,
                 difference: 0,
@@ -215,13 +215,17 @@ export default function NewAdjustmentPage() {
             return;
         }
         if (!warehouseId) {
-            setError("Please select a target warehouse.");
+            setError("Please select a warehouse facility.");
             return;
         }
 
         for (const it of items) {
-            if (!it.product_id || !it.location_id) {
-                setError("Product and location must be selected for each item.");
+            if (!it.product_id) {
+                setError("Please select a product for all lines.");
+                return;
+            }
+            if (!it.location_id) {
+                setError("Please select a storage zone for all lines.");
                 return;
             }
             if (it.counted_quantity < 0) {
@@ -243,7 +247,7 @@ export default function NewAdjustmentPage() {
                 throw new Error("You must be logged in to create an adjustment. Please sign in again.");
             }
 
-            // 1. Create adjustment record
+            // 1. Create adjustment header
             const { data: adj, error: adjError } = await supabase
                 .from("adjustments")
                 .insert({
@@ -258,7 +262,7 @@ export default function NewAdjustmentPage() {
 
             if (adjError) throw adjError;
 
-            // 2. Insert line items
+            // 2. Insert items
             if (adj) {
                 const itemRows = items.map((i) => ({
                     adjustment_id: adj.id,
@@ -276,7 +280,7 @@ export default function NewAdjustmentPage() {
                 if (itemsError) throw itemsError;
             }
 
-            setSuccessMessage("Stock adjustment record created successfully!");
+            setSuccessMessage("Adjustment recorded successfully! Opening detail view...");
             setTimeout(() => {
                 router.push(`/adjustments/${adj.id}`);
             }, 1000);
@@ -294,67 +298,75 @@ export default function NewAdjustmentPage() {
     };
 
     const availableLocations = locations.filter((l) => l.warehouse_id === warehouseId);
+    const netDifference = items.reduce((acc, curr) => acc + curr.difference, 0);
 
     return (
         <AppLayout
             title="Create Stock Adjustment"
-            description="Reconcile physical on-shelf counts with the system database."
+            description="Record physical cycle counts against system balances to correct variances."
             actions={
                 <Link
                     href="/adjustments"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                    className="ss-button ss-button-secondary"
                 >
                     <ArrowLeft size={16} />
                     Back to Adjustments
                 </Link>
             }
         >
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-4xl mx-auto space-y-6">
                 {error && (
-                    <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-3">
-                        <AlertCircle size={18} className="shrink-0" />
-                        <span>{error}</span>
-                    </div>
+                    <Alert type="error">
+                        {error}
+                    </Alert>
                 )}
 
                 {successMessage && (
-                    <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-center gap-3">
-                        <CheckCircle size={18} className="shrink-0 text-emerald-600" />
-                        <span>{successMessage}</span>
-                    </div>
+                    <Alert type="success">
+                        {successMessage}
+                    </Alert>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Header Info */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
-                        <h3 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
-                            <SlidersHorizontal size={18} className="text-amber-600" />
-                            Adjustment Header
-                        </h3>
+                    {/* SECTION 1: Facility & Header */}
+                    <div className="ss-card p-6">
+                        <div className="flex items-center gap-2.5 pb-3.5 mb-5 border-b border-slate-100">
+                            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                                <SlidersHorizontal size={18} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900">
+                                    Audit Facility & Audit Order
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    Inventory reconciliation header.
+                                </p>
+                            </div>
+                        </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Adjustment Number <span className="text-rose-500">*</span>
+                                <label className="ss-label">
+                                    Adjustment # <span className="required">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={adjustmentNumber}
                                     onChange={(e) => setAdjustmentNumber(e.target.value)}
                                     required
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-mono"
+                                    className="ss-input font-mono uppercase font-bold"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Audit Warehouse <span className="text-rose-500">*</span>
+                                <label className="ss-label">
+                                    Warehouse Facility <span className="required">*</span>
                                 </label>
                                 <select
                                     value={warehouseId}
                                     onChange={(e) => handleWarehouseChange(e.target.value)}
                                     required
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="ss-select"
                                 >
                                     <option value="">Select Warehouse</option>
                                     {warehouses.map((w) => (
@@ -366,78 +378,73 @@ export default function NewAdjustmentPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                    Initial Status
-                                </label>
+                                <label className="ss-label">Initial Status</label>
                                 <select
                                     value={status}
                                     onChange={(e) => setStatus(e.target.value as any)}
-                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="ss-select"
                                 >
-                                    <option value="ready">Ready (Ready for Immediate Validation)</option>
+                                    <option value="ready">Ready (Awaiting Reconciliation Validation)</option>
+                                    <option value="waiting">Waiting (Review in progress)</option>
                                     <option value="draft">Draft</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
-                                Audit Notes / Reference
-                            </label>
+                        <div className="mt-4">
+                            <label className="ss-label">Audit Notes / Reason</label>
                             <input
                                 type="text"
-                                placeholder="e.g. Monthly cycle count, damaged shelf audit..."
+                                placeholder="e.g. Q3 annual physical count, damaged shipment write-off"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="ss-input"
                             />
                         </div>
                     </div>
 
-                    {/* Adjustment Items */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                            <div>
-                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                                    <Calculator size={18} className="text-amber-600" />
-                                    Physical Count Reconciliation
-                                </h3>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Difference is auto-computed (Counted Qty − System Qty) and will be applied on validation.
-                                </p>
+                    {/* SECTION 2: Line Items with System vs Counted vs Difference */}
+                    <div className="ss-card p-6">
+                        <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <Calculator size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900">
+                                        Count Comparison Table
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        Compare recorded system quantity vs physical shelf count.
+                                    </p>
+                                </div>
                             </div>
+
                             <button
                                 type="button"
                                 onClick={addItem}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition"
+                                className="ss-button ss-button-secondary ss-button-sm"
                             >
-                                <Plus size={15} />
+                                <Plus size={14} />
                                 Add Item Row
                             </button>
                         </div>
 
-                        <div className="space-y-4">
-                            {items.map((item, index) => (
+                        <div className="space-y-3">
+                            {items.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 items-center"
+                                    className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
                                 >
-                                    {/* Product */}
-                                    <div className="sm:col-span-3">
-                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                                            Product
+                                    <div className="sm:col-span-4">
+                                        <label className="ss-label text-[11px] mb-1">
+                                            Product SKU / Item
                                         </label>
                                         <select
                                             value={item.product_id}
-                                            onChange={(e) =>
-                                                updateItemProductOrLocation(
-                                                    item.id,
-                                                    e.target.value,
-                                                    item.location_id
-                                                )
-                                            }
+                                            onChange={(e) => updateItemProductOrLocation(item.id, e.target.value, item.location_id)}
                                             required
-                                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium focus:ring-2 focus:ring-blue-500"
+                                            className="ss-select"
                                         >
                                             <option value="">Select Product</option>
                                             {products.map((p) => (
@@ -448,130 +455,134 @@ export default function NewAdjustmentPage() {
                                         </select>
                                     </div>
 
-                                    {/* Location */}
                                     <div className="sm:col-span-3">
-                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                                            Zone
+                                        <label className="ss-label text-[11px] mb-1">
+                                            Storage Zone
                                         </label>
                                         <select
                                             value={item.location_id}
-                                            onChange={(e) =>
-                                                updateItemProductOrLocation(
-                                                    item.id,
-                                                    item.product_id,
-                                                    e.target.value
-                                                )
-                                            }
+                                            onChange={(e) => updateItemProductOrLocation(item.id, item.product_id, e.target.value)}
                                             required
-                                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium focus:ring-2 focus:ring-blue-500"
+                                            className="ss-select"
                                         >
                                             <option value="">Select Location</option>
-                                            {availableLocations.map((loc) => (
-                                                <option key={loc.id} value={loc.id}>
-                                                    {loc.name} ({loc.code})
+                                            {availableLocations.map((l) => (
+                                                <option key={l.id} value={l.id}>
+                                                    {l.name} ({l.code})
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
 
-                                    {/* System Quantity */}
-                                    <div className="sm:col-span-1 text-center">
-                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                                    <div className="sm:col-span-1">
+                                        <label className="ss-label text-[11px] mb-1 text-slate-400">
                                             System
                                         </label>
-                                        <span className="font-bold text-sm text-slate-700 block py-1.5 bg-slate-200/60 rounded-lg">
+                                        <span className="font-mono font-bold text-slate-700 text-xs block py-2">
                                             {item.system_quantity}
                                         </span>
                                     </div>
 
-                                    {/* Counted Quantity */}
                                     <div className="sm:col-span-2">
-                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                                        <label className="ss-label text-[11px] mb-1">
                                             Counted
                                         </label>
                                         <input
                                             type="number"
                                             min="0"
                                             value={item.counted_quantity}
-                                            onChange={(e) =>
-                                                updateItemCounted(
-                                                    item.id,
-                                                    Math.max(0, parseInt(e.target.value) || 0)
-                                                )
-                                            }
+                                            onChange={(e) => updateCountedQuantity(item.id, Math.max(0, parseInt(e.target.value) || 0))}
                                             required
-                                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 font-bold text-center focus:ring-2 focus:ring-blue-500"
+                                            className="ss-input font-bold font-mono"
                                         />
                                     </div>
 
-                                    {/* Difference Display */}
-                                    <div className="sm:col-span-1 text-center">
-                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                                    <div className="sm:col-span-1">
+                                        <label className="ss-label text-[11px] mb-1">
                                             Diff
                                         </label>
                                         <span
-                                            className={`font-bold text-sm block py-1.5 rounded-lg ${
+                                            className={`font-mono font-bold text-xs block py-2 ${
                                                 item.difference > 0
-                                                    ? "text-emerald-700 bg-emerald-100"
+                                                    ? "text-emerald-600"
                                                     : item.difference < 0
-                                                    ? "text-rose-700 bg-rose-100"
-                                                    : "text-slate-500 bg-slate-200/50"
+                                                    ? "text-rose-600"
+                                                    : "text-slate-500"
                                             }`}
                                         >
                                             {item.difference > 0 ? `+${item.difference}` : item.difference}
                                         </span>
                                     </div>
 
-                                    {/* Reason */}
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-                                            Reason
-                                        </label>
-                                        <select
-                                            value={item.reason}
-                                            onChange={(e) =>
-                                                updateItemReason(item.id, e.target.value as AdjustmentReason)
-                                            }
-                                            className="w-full px-2 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
-                                        >
-                                            <option value="count_correction">Count Correction</option>
-                                            <option value="damaged">Damaged</option>
-                                            <option value="lost">Lost</option>
-                                            <option value="found">Found</option>
-                                            <option value="other">Other</option>
-                                        </select>
-                                    </div>
-
-                                    {/* Delete Row */}
-                                    <div className="sm:col-span-1 text-right flex justify-end">
+                                    <div className="sm:col-span-1 flex justify-end pt-5 sm:pt-0">
                                         <button
                                             type="button"
-                                            disabled={items.length <= 1}
                                             onClick={() => removeItem(item.id)}
+                                            disabled={items.length <= 1}
                                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30"
+                                            title="Remove Row"
                                         >
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
+
+                                    <div className="sm:col-span-12 pt-1 border-t border-slate-100 flex items-center gap-2">
+                                        <span className="text-[11px] font-semibold text-slate-500">Reason:</span>
+                                        <select
+                                            value={item.reason}
+                                            onChange={(e) => updateReason(item.id, e.target.value as any)}
+                                            className="ss-select !h-7 !py-0 !text-[11px] !w-auto"
+                                        >
+                                            <option value="count_correction">Count Correction</option>
+                                            <option value="damaged">Damaged Stock</option>
+                                            <option value="lost">Lost / Missing</option>
+                                            <option value="found">Found / Discovered</option>
+                                            <option value="other">Other / Write-off</option>
+                                        </select>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+
+                        {/* Total Summary Footer */}
+                        <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <span className="text-slate-500 font-medium">
+                                Audited Items: <span className="text-slate-900 font-bold">{items.length} lines</span>
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                                    Net Stock Variance:
+                                </span>
+                                <span
+                                    className={`font-mono font-bold text-sm px-2.5 py-1 rounded-md border ${
+                                        netDifference > 0
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                            : netDifference < 0
+                                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                                            : "bg-slate-100 text-slate-700 border-slate-200"
+                                    }`}
+                                >
+                                    {netDifference > 0 ? `+${netDifference}` : netDifference} units
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex justify-end gap-3">
+                    {/* Submit Actions */}
+                    <div className="flex items-center justify-end gap-3 pt-2">
                         <Link
                             href="/adjustments"
-                            className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                            className="ss-button ss-button-secondary"
                         >
                             Cancel
                         </Link>
-                        <button
+                        <Button
                             type="submit"
-                            disabled={loading}
-                            className="px-6 py-2.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition shadow-sm disabled:opacity-50 flex items-center gap-2"
+                            variant="primary"
+                            isLoading={loading}
                         >
-                            {loading ? "Creating..." : "Save Adjustment"}
-                        </button>
+                            Record Adjustment
+                        </Button>
                     </div>
                 </form>
             </div>

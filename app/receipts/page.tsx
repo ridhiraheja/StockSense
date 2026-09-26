@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
-import { Receipt, Warehouse, DocumentStatus } from "@/lib/types";
+import { TableSkeleton, Alert } from "@/components/ui";
+import { Receipt } from "@/lib/types";
 import {
     Plus,
     Search,
@@ -15,7 +16,6 @@ import {
     Calendar,
     ChevronRight,
     Eye,
-    CheckCircle,
 } from "lucide-react";
 
 interface ReceiptWithDetails extends Receipt {
@@ -75,38 +75,38 @@ export default function ReceiptsPage() {
     return (
         <AppLayout
             title="Receipt Orders"
-            description="Receive incoming shipments, record vendor deliveries, and auto-update stock."
+            description="Intake incoming vendor shipments, assign warehouse bin locations, and validate inventory increases."
             actions={
                 <Link
                     href="/receipts/new"
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm"
+                    className="ss-button ss-button-primary"
                 >
-                    <Plus size={18} />
-                    Create Receipt
+                    <Plus size={16} />
+                    New Receipt
                 </Link>
             }
         >
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
+            {/* Filter Bar */}
+            <div className="ss-card p-4 mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1">
                     <div className="relative w-full sm:w-72">
                         <Search
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                         />
                         <input
                             type="text"
                             placeholder="Search by receipt #, supplier, warehouse..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                            className="ss-input !pl-9"
                         />
                     </div>
 
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="ss-select w-full sm:w-40"
                     >
                         <option value="all">All Statuses</option>
                         <option value="draft">Draft</option>
@@ -117,90 +117,97 @@ export default function ReceiptsPage() {
                     </select>
                 </div>
 
-                <div className="text-sm font-medium text-slate-500 w-full md:w-auto text-right">
-                    Showing <span className="text-slate-900 font-bold">{filteredReceipts.length}</span> receipts
+                <div className="text-xs text-slate-500 font-medium whitespace-nowrap">
+                    Showing <span className="font-bold text-slate-900">{filteredReceipts.length}</span> of {receipts.length} receipts
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Receipts Table */}
             {loading ? (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-slate-500">Loading receipts...</p>
-                </div>
+                <TableSkeleton rows={5} columns={6} />
             ) : filteredReceipts.length === 0 ? (
                 <EmptyState
                     icon={Truck}
-                    title={searchQuery || statusFilter !== "all" ? "No receipts match your search" : "No receipt orders found"}
+                    title="No receipts found"
                     description={
                         searchQuery || statusFilter !== "all"
-                            ? "Try resetting your search query or status filter."
-                            : "Create an incoming inventory receipt to intake items from vendors or suppliers."
+                            ? "No receipts match your search and filter parameters."
+                            : "Create your first inbound receipt order to receive products from suppliers."
                     }
-                    actionLabel={searchQuery || statusFilter !== "all" ? undefined : "Create First Receipt"}
+                    actionLabel="Create Receipt"
                     actionHref="/receipts/new"
                 />
             ) : (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600">
-                            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Receipt #</th>
-                                    <th className="px-6 py-4">Supplier</th>
-                                    <th className="px-6 py-4">Warehouse</th>
-                                    <th className="px-6 py-4 text-center">Items / Quantity</th>
-                                    <th className="px-6 py-4">Date</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredReceipts.map((r) => (
-                                    <tr key={r.id} className="hover:bg-slate-50/60 transition">
-                                        <td className="px-6 py-4 font-mono font-bold text-slate-900">
+                <div className="ss-table-wrapper">
+                    <table className="ss-table">
+                        <thead>
+                            <tr>
+                                <th>Receipt Number</th>
+                                <th>Supplier / Vendor</th>
+                                <th>Warehouse</th>
+                                <th>Items / Total Qty</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th className="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredReceipts.map((r) => (
+                                <tr key={r.id}>
+                                    <td>
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-xs">
+                                                <Truck size={14} />
+                                            </div>
                                             <Link
                                                 href={`/receipts/${r.id}`}
-                                                className="text-blue-600 hover:underline flex items-center gap-1.5"
+                                                className="font-mono font-bold text-slate-900 hover:text-blue-600 transition"
                                             >
-                                                <Truck size={16} />
                                                 {r.receipt_number}
                                             </Link>
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-slate-800">
-                                            {r.supplier_name || "Direct Vendor"}
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-700">
-                                            {r.warehouse?.name || "Main Warehouse"}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="font-semibold text-slate-900">
-                                                {r.items_count} item{r.items_count === 1 ? "" : "s"}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="font-medium text-slate-800">
+                                            {r.supplier_name || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-600 text-xs">
+                                            {r.warehouse?.name || "—"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-600 font-medium">
+                                                {r.items_count} line items
                                             </span>
-                                            <span className="text-xs text-slate-400 block">
-                                                ({r.total_quantity} total units)
+                                            <span className="font-mono font-bold text-slate-900 text-xs">
+                                                ({r.total_quantity} units)
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="text-slate-500 text-xs">
                                             {new Date(r.created_at).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <StatusBadge status={r.status} type="document" />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <Link
-                                                href={`/receipts/${r.id}`}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-                                            >
-                                                View
-                                                <ChevronRight size={14} />
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <StatusBadge status={r.status} type="document" />
+                                    </td>
+                                    <td className="text-right">
+                                        <Link
+                                            href={`/receipts/${r.id}`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition"
+                                        >
+                                            <Eye size={13} />
+                                            View
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </AppLayout>

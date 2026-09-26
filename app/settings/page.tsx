@@ -14,8 +14,11 @@ import {
     KeyRound,
     LogOut,
     ExternalLink,
-    CheckCircle,
+    CheckCircle2,
     Server,
+    Boxes,
+    Building2,
+    SlidersHorizontal,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -43,126 +46,143 @@ export default function SettingsPage() {
     return (
         <AppLayout
             title="System Settings"
-            description="Application preferences, master catalogs, database connections, and security."
+            description="Manage organizational taxonomies, storage facilities, database connections, and system preferences."
         >
-            <div className="max-w-4xl mx-auto space-y-8">
-                {/* Master Data Management */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                    <h3 className="text-base font-bold text-slate-900 mb-1">
-                        Master Data Catalogs
-                    </h3>
-                    <p className="text-xs text-slate-500 mb-6">
-                        Configure organizational taxonomies, storage facilities, and classification.
-                    </p>
+            <div className="max-w-4xl mx-auto space-y-6">
+                {/* Master Data Catalogs */}
+                <div className="ss-card p-6">
+                    <div className="pb-3.5 mb-5 border-b border-slate-100">
+                        <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                            Master Data Catalogs
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Configure facilities, bins, storage locations, and product classifications.
+                        </p>
+                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Link
                             href="/warehouses"
-                            className="flex items-start justify-between p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 transition group"
+                            className="flex items-start justify-between p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition group bg-slate-50/40"
                         >
-                            <div className="flex items-start gap-3.5">
-                                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition">
-                                    <Warehouse size={20} />
+                            <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">
+                                    <Warehouse size={18} />
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition">
-                                        Warehouses & Locations
+                                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition">
+                                        Warehouses & Storage Zones
                                     </h4>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        Manage physical distribution centers, aisles, and storage zones.
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                        Manage physical distribution centers, aisles, and bin locations.
                                     </p>
                                 </div>
                             </div>
-                            <ExternalLink size={16} className="text-slate-400 group-hover:text-blue-600" />
+                            <ExternalLink size={14} className="text-slate-400 group-hover:text-blue-600 shrink-0" />
                         </Link>
 
                         <Link
                             href="/categories"
-                            className="flex items-start justify-between p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 transition group"
+                            className="flex items-start justify-between p-4 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/30 transition group bg-slate-50/40"
                         >
-                            <div className="flex items-start gap-3.5">
-                                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition">
-                                    <Tag size={20} />
+                            <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:bg-purple-600 group-hover:text-white transition">
+                                    <Tag size={18} />
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition">
+                                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-purple-600 transition">
                                         Product Categories
                                     </h4>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        Group inventory items by type, material, or department.
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                        Group inventory items by material, taxonomy, or family.
                                     </p>
                                 </div>
                             </div>
-                            <ExternalLink size={16} className="text-slate-400 group-hover:text-purple-600" />
+                            <ExternalLink size={14} className="text-slate-400 group-hover:text-purple-600 shrink-0" />
                         </Link>
                     </div>
                 </div>
 
-                {/* Database & System Health */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                    <h3 className="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
-                        <Database size={18} className="text-emerald-600" />
-                        Database & Security Architecture
-                    </h3>
-                    <p className="text-xs text-slate-500 mb-6">
-                        Live infrastructure status and database connection telemetry.
-                    </p>
+                {/* Database & Infrastructure Telemetry */}
+                <div className="ss-card p-6">
+                    <div className="pb-3.5 mb-5 border-b border-slate-100 flex items-center gap-2">
+                        <Database size={16} className="text-emerald-600" />
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                                Database & Architecture Telemetry
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                                Live PostgreSQL status and RPC stored procedure connectivity.
+                            </p>
+                        </div>
+                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                            <span className="text-xs font-semibold text-slate-400 uppercase block">Engine</span>
-                            <div className="flex items-center gap-2 mt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                                Database Engine
+                            </span>
+                            <div className="flex items-center gap-2 mt-1.5">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <span className="font-bold text-slate-900 text-sm">Supabase PostgreSQL</span>
+                                <span className="font-bold text-slate-900 text-xs">Supabase PostgreSQL</span>
                             </div>
                         </div>
 
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                            <span className="text-xs font-semibold text-slate-400 uppercase block">RLS Policies</span>
-                            <div className="flex items-center gap-2 mt-1">
-                                <CheckCircle size={14} className="text-emerald-600" />
-                                <span className="font-bold text-slate-900 text-sm">Row Level Security Active</span>
+                        <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                                Security Layer
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                <CheckCircle2 size={14} className="text-emerald-600" />
+                                <span className="font-bold text-slate-900 text-xs">Row Level Security (RLS)</span>
                             </div>
                         </div>
 
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                            <span className="text-xs font-semibold text-slate-400 uppercase block">Stored Procedures</span>
-                            <div className="flex items-center gap-2 mt-1">
-                                <CheckCircle size={14} className="text-emerald-600" />
-                                <span className="font-bold text-slate-900 text-sm">RPC Atomic Stock Functions</span>
+                        <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+                            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                                Atomic Calculations
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                <CheckCircle2 size={14} className="text-emerald-600" />
+                                <span className="font-bold text-slate-900 text-xs">RPC Validation Functions</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Account & Security */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
-                    <h3 className="text-base font-bold text-slate-900 mb-1">
-                        Account & Authentication
-                    </h3>
-                    <p className="text-xs text-slate-500 mb-6">
-                        Active session credentials and signout controls.
-                    </p>
+                {/* Account & Session Management */}
+                <div className="ss-card p-6">
+                    <div className="pb-3.5 mb-4 border-b border-slate-100">
+                        <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                            Account & Authentication
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Current active user session details.
+                        </p>
+                    </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase">Logged in as</p>
-                            <p className="font-bold text-slate-900 text-sm mt-0.5">{userEmail}</p>
+                            <span className="text-xs font-semibold text-slate-700 block">
+                                Signed in as
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono">
+                                {userEmail || "Authenticated User"}
+                            </span>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                             <Link
-                                href="/forgot-password"
-                                className="px-4 py-2 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                                href="/profile"
+                                className="ss-button ss-button-secondary ss-button-sm"
                             >
-                                Reset Password
+                                Edit Profile
                             </Link>
-
                             <button
                                 onClick={handleLogout}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
+                                className="ss-button ss-button-danger ss-button-sm"
                             >
-                                <LogOut size={14} />
+                                <LogOut size={13} />
                                 Sign Out
                             </button>
                         </div>
