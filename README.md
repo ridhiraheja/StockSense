@@ -2,7 +2,8 @@
 
 StockSense is an inventory and warehouse management app built with Next.js and Supabase. It tracks stock across multiple warehouses — what comes in, what moves between locations, what goes out — and gives you a dashboard to see where things stand without digging through spreadsheets.
 
-Live demo: https://stock-sense-six-puce.vercel.app/
+App Link: https://stock-sense-six-puce.vercel.app/
+Live Demo: https://drive.google.com/file/d/1yGRz9glTB7lrkOX8SawojMDL6yr1n3tK/view
 
 ![StockSense Dashboard](./docs/screenshots/dashboard.png)
 
@@ -113,6 +114,3 @@ Some things that aren't built yet but would make sense to add: barcode scanning,
 
 Issues and pull requests are welcome — check the [issues page](https://github.com/ridhiraheja/StockSense/issues) if you want to help out.
 
-## License
-
-No license yet. If you want people to be able to freely use or modify this, add a `LICENSE` file (MIT is a common default) and update this section.
