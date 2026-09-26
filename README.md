@@ -81,27 +81,29 @@ npm run dev
 and open http://localhost:3000. It'll redirect you to `/login` or `/dashboard` depending on whether you're already signed in.
 
 ## Project layout
+
+```
 StockSense/
 ├── app/
-│ ├── dashboard/ # KPIs and activity feed
-│ ├── products/ # Product catalog
-│ ├── categories/
-│ ├── warehouses/ # Warehouses and their locations
-│ ├── receipts/
-│ ├── deliveries/
-│ ├── transfers/
-│ ├── adjustments/
-│ ├── moves/ # Full stock movement ledger
-│ ├── profile/
-│ ├── settings/
-│ ├── login/ signup/ forgot-password/ reset-password/
-│ └── page.tsx # Redirects to /login or /dashboard
-├── components/ # AppLayout, StatCard, StatusBadge, Modal, EmptyState
+│   ├── dashboard/          # KPIs and activity feed
+│   ├── products/           # Product catalog
+│   ├── categories/
+│   ├── warehouses/         # Warehouses and their locations
+│   ├── receipts/
+│   ├── deliveries/
+│   ├── transfers/
+│   ├── adjustments/
+│   ├── moves/              # Full stock movement ledger
+│   ├── profile/
+│   ├── settings/
+│   ├── login/ signup/ forgot-password/ reset-password/
+│   └── page.tsx            # Redirects to /login or /dashboard
+├── components/              # AppLayout, StatCard, StatusBadge, Modal, EmptyState
 ├── lib/
-│ ├── supabase/client.ts
-│ └── types.ts # Shared TypeScript types
+│   ├── supabase/client.ts
+│   └── types.ts             # Shared TypeScript types
 └── public/
-
+```
 
 ## What's next
 
